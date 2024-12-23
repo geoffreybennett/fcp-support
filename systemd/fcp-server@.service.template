@@ -1,0 +1,14 @@
+[Unit]
+Description=Focusrite Control Protocol Server for Card %i
+BindsTo=dev-snd-controlC%i.device
+StopWhenUnneeded=yes
+
+[Service]
+DynamicUser=yes
+RuntimeDirectoryMode=0770
+UMask=0007
+Group=audio
+RuntimeDirectory=fcp-server-%i
+Type=simple
+ExecStart=/usr/local/bin/fcp-server %i
+Restart=on-failure

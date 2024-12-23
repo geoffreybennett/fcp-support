@@ -1,0 +1,5 @@
+*.o
+/.deps
+/fcp-firmware
+/fcp-server
+/systemd/fcp-server@.service

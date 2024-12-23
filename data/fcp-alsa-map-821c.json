@@ -1,0 +1,645 @@
+{
+  "input-controls": {
+    "air": {
+      "name": "Line In %d Air Capture Enum",
+      "type": "enum",
+      "values": [
+        "Off",
+        "Presence",
+        "Presence + Drive"
+      ]
+    },
+    "auto-gain": {
+      "name": "Line In %d Autogain Capture Switch",
+      "type": "bool"
+    },
+    "auto-gain-exit-status": {
+      "name": "Line In %d Autogain Status Capture Enum",
+      "type": "enum",
+      "values": [
+        "Success",
+        "DRover",
+        "MinGainLimit",
+        "DRunder",
+        "MaxGainLimit",
+        "Clipped",
+        "Cancelled",
+        "Root"
+      ]
+    },
+    "channel-link": {
+      "name": "Line In %d Link Capture Switch",
+      "type": "bool"
+    },
+    "clip-safe": {
+      "name": "Line In %d Safe Capture Switch",
+      "type": "bool"
+    },
+    "instrument": {
+      "name": "Line In %d Level Capture Enum",
+      "type": "enum",
+      "values": [
+        "Line",
+        "Inst"
+      ]
+    },
+    "phantom-power": {
+      "name": "Line In %d Phantom Power Capture Switch",
+      "type": "bool"
+    },
+    "preamp-gain": {
+      "name": "Line In %d Gain Capture Volume",
+      "type": "int",
+      "min": 0,
+      "max": 70,
+      "db-min": 0,
+      "db-max": 69
+    }
+  },
+  "output-controls": {
+    "level": {
+      "name": "Analogue %d Playback Volume",
+      "type": "int",
+      "min": -127,
+      "max": 0,
+      "db-min": -127,
+      "db-max": 0
+    }
+  },
+  "output-link": [ 0, 1, 2, 3, 4, 5, 6, 7 ],
+  "global-controls": {
+    "firmware-version": {
+      "name": "Firmware Version",
+      "interface": "card",
+      "access": "readonly",
+      "type": "int",
+      "component-count": 4,
+      "components": [
+        "versionMajorMinor:0:2",
+        "versionMajorMinor:2:2",
+        "versionMajor",
+        "versionMinor",
+        "versionStageRelease",
+        "versionBuildNr"
+      ]
+    },
+    "esp-firmware-version": {
+      "name": "ESP Firmware Version",
+      "interface": "card",
+      "access": "readonly",
+      "type": "int",
+      "components": [
+        "espSpace.firmwareVersion.major",
+        "espSpace.firmwareVersion.minor",
+        "espSpace.firmwareVersion.build",
+        "espSpace.firmwareVersion.patch"
+      ]
+    },
+    "selectedInput": {
+      "name": "Input Select Capture Enum",
+      "type": "enum",
+      "max-from": "kMAX_PREAMP_CHANNELS",
+      "label-format": "Input %d"
+    },
+    "muteSwitch": {
+      "name": "Mute Playback Switch",
+      "type": "bool"
+    },
+    "dimSwitch": {
+      "name": "Dim Playback Switch",
+      "type": "bool"
+    },
+    "altMonitorTalkbackEnable": {
+      "name": "Speaker Switching Playback Switch",
+      "type": "bool"
+    },
+    "altSwitch": {
+      "name": "Speaker Switching Alt Playback Switch",
+      "type": "bool"
+    }
+  },
+  "sources": [
+    {
+      "device_name": "Analogue 1",
+      "alsa_name": "Analogue 1"
+    },
+    {
+      "device_name": "Analogue 2",
+      "alsa_name": "Analogue 2"
+    },
+    {
+      "device_name": "Analogue 3",
+      "alsa_name": "Analogue 3"
+    },
+    {
+      "device_name": "Analogue 4",
+      "alsa_name": "Analogue 4"
+    },
+    {
+      "device_name": "Analogue 5",
+      "alsa_name": "Analogue 5"
+    },
+    {
+      "device_name": "Analogue 6",
+      "alsa_name": "Analogue 6"
+    },
+    {
+      "device_name": "Analogue 7",
+      "alsa_name": "Analogue 7"
+    },
+    {
+      "device_name": "Analogue 8",
+      "alsa_name": "Analogue 8"
+    },
+    {
+      "device_name": "S/PDIF 1",
+      "alsa_name": "S/PDIF 1"
+    },
+    {
+      "device_name": "S/PDIF 2",
+      "alsa_name": "S/PDIF 2"
+    },
+    {
+      "device_name": "ADAT 1",
+      "alsa_name": "ADAT 1"
+    },
+    {
+      "device_name": "ADAT 2",
+      "alsa_name": "ADAT 2"
+    },
+    {
+      "device_name": "ADAT 3",
+      "alsa_name": "ADAT 3"
+    },
+    {
+      "device_name": "ADAT 4",
+      "alsa_name": "ADAT 4"
+    },
+    {
+      "device_name": "ADAT 5",
+      "alsa_name": "ADAT 5"
+    },
+    {
+      "device_name": "ADAT 6",
+      "alsa_name": "ADAT 6"
+    },
+    {
+      "device_name": "ADAT 7",
+      "alsa_name": "ADAT 7"
+    },
+    {
+      "device_name": "ADAT 8",
+      "alsa_name": "ADAT 8"
+    },
+    {
+      "device_name": "USB 1",
+      "alsa_name": "PCM 1"
+    },
+    {
+      "device_name": "USB 2",
+      "alsa_name": "PCM 2"
+    },
+    {
+      "device_name": "USB 3",
+      "alsa_name": "PCM 3"
+    },
+    {
+      "device_name": "USB 4",
+      "alsa_name": "PCM 4"
+    },
+    {
+      "device_name": "USB 5",
+      "alsa_name": "PCM 5"
+    },
+    {
+      "device_name": "USB 6",
+      "alsa_name": "PCM 6"
+    },
+    {
+      "device_name": "USB 7",
+      "alsa_name": "PCM 7"
+    },
+    {
+      "device_name": "USB 8",
+      "alsa_name": "PCM 8"
+    },
+    {
+      "device_name": "USB 9",
+      "alsa_name": "PCM 9"
+    },
+    {
+      "device_name": "USB 10",
+      "alsa_name": "PCM 10"
+    },
+    {
+      "device_name": "USB 11",
+      "alsa_name": "PCM 11"
+    },
+    {
+      "device_name": "USB 12",
+      "alsa_name": "PCM 12"
+    },
+    {
+      "device_name": "USB 13",
+      "alsa_name": "PCM 13"
+    },
+    {
+      "device_name": "USB 14",
+      "alsa_name": "PCM 14"
+    },
+    {
+      "device_name": "USB 15",
+      "alsa_name": "PCM 15"
+    },
+    {
+      "device_name": "USB 16",
+      "alsa_name": "PCM 16"
+    },
+    {
+      "device_name": "USB 17",
+      "alsa_name": "PCM 17"
+    },
+    {
+      "device_name": "USB 18",
+      "alsa_name": "PCM 18"
+    },
+    {
+      "device_name": "USB 19",
+      "alsa_name": "PCM 19"
+    },
+    {
+      "device_name": "USB 20",
+      "alsa_name": "PCM 20"
+    },
+    {
+      "device_name": "USB 21",
+      "alsa_name": "PCM 21"
+    },
+    {
+      "device_name": "USB 22",
+      "alsa_name": "PCM 22"
+    },
+    {
+      "device_name": "USB 23",
+      "alsa_name": "PCM 23"
+    },
+    {
+      "device_name": "USB 24",
+      "alsa_name": "PCM 24"
+    },
+    {
+      "device_name": "Mixer 1",
+      "alsa_name": "Mix A"
+    },
+    {
+      "device_name": "Mixer 2",
+      "alsa_name": "Mix B"
+    },
+    {
+      "device_name": "Mixer 3",
+      "alsa_name": "Mix C"
+    },
+    {
+      "device_name": "Mixer 4",
+      "alsa_name": "Mix D"
+    },
+    {
+      "device_name": "Mixer 5",
+      "alsa_name": "Mix E"
+    },
+    {
+      "device_name": "Mixer 6",
+      "alsa_name": "Mix F"
+    },
+    {
+      "device_name": "Mixer 7",
+      "alsa_name": "Mix G"
+    },
+    {
+      "device_name": "Mixer 8",
+      "alsa_name": "Mix H"
+    },
+    {
+      "device_name": "Mixer 9",
+      "alsa_name": "Mix I"
+    },
+    {
+      "device_name": "Mixer 10",
+      "alsa_name": "Mix J"
+    },
+    {
+      "device_name": "Mixer 11",
+      "alsa_name": "Mix K"
+    },
+    {
+      "device_name": "Mixer 12",
+      "alsa_name": "Mix L"
+    }
+  ],
+  "sinks": [
+    {
+      "device_name": "Monitor 1",
+      "alsa_name": "Analogue 1"
+    },
+    {
+      "device_name": "Monitor 2",
+      "alsa_name": "Analogue 2"
+    },
+    {
+      "device_name": "Monitor 3",
+      "alsa_name": "Analogue 3"
+    },
+    {
+      "device_name": "Monitor 4",
+      "alsa_name": "Analogue 4"
+    },
+    {
+      "device_name": "Headphone 1L",
+      "alsa_name": "Analogue 5"
+    },
+    {
+      "device_name": "Headphone 1R",
+      "alsa_name": "Analogue 6"
+    },
+    {
+      "device_name": "Headphone 2L",
+      "alsa_name": "Analogue 7"
+    },
+    {
+      "device_name": "Headphone 2R",
+      "alsa_name": "Analogue 8"
+    },
+    {
+      "device_name": "S/PDIF 1",
+      "alsa_name": "S/PDIF 1"
+    },
+    {
+      "device_name": "S/PDIF 2",
+      "alsa_name": "S/PDIF 2"
+    },
+    {
+      "device_name": "ADAT 1",
+      "alsa_name": "ADAT 1"
+    },
+    {
+      "device_name": "ADAT 2",
+      "alsa_name": "ADAT 2"
+    },
+    {
+      "device_name": "ADAT 3",
+      "alsa_name": "ADAT 3"
+    },
+    {
+      "device_name": "ADAT 4",
+      "alsa_name": "ADAT 4"
+    },
+    {
+      "device_name": "ADAT 5",
+      "alsa_name": "ADAT 5"
+    },
+    {
+      "device_name": "ADAT 6",
+      "alsa_name": "ADAT 6"
+    },
+    {
+      "device_name": "ADAT 7",
+      "alsa_name": "ADAT 7"
+    },
+    {
+      "device_name": "ADAT 8",
+      "alsa_name": "ADAT 8"
+    },
+    {
+      "device_name": "USB 1",
+      "alsa_name": "PCM 1"
+    },
+    {
+      "device_name": "USB 2",
+      "alsa_name": "PCM 2"
+    },
+    {
+      "device_name": "USB 3",
+      "alsa_name": "PCM 3"
+    },
+    {
+      "device_name": "USB 4",
+      "alsa_name": "PCM 4"
+    },
+    {
+      "device_name": "USB 5",
+      "alsa_name": "PCM 5"
+    },
+    {
+      "device_name": "USB 6",
+      "alsa_name": "PCM 6"
+    },
+    {
+      "device_name": "USB 7",
+      "alsa_name": "PCM 7"
+    },
+    {
+      "device_name": "USB 8",
+      "alsa_name": "PCM 8"
+    },
+    {
+      "device_name": "Loopback 1",
+      "alsa_name": "PCM 9"
+    },
+    {
+      "device_name": "Loopback 2",
+      "alsa_name": "PCM 10"
+    },
+    {
+      "device_name": "USB 11",
+      "alsa_name": "PCM 11"
+    },
+    {
+      "device_name": "USB 12",
+      "alsa_name": "PCM 12"
+    },
+    {
+      "device_name": "USB 13",
+      "alsa_name": "PCM 13"
+    },
+    {
+      "device_name": "USB 14",
+      "alsa_name": "PCM 14"
+    },
+    {
+      "device_name": "USB 15",
+      "alsa_name": "PCM 15"
+    },
+    {
+      "device_name": "USB 16",
+      "alsa_name": "PCM 16"
+    },
+    {
+      "device_name": "USB 17",
+      "alsa_name": "PCM 17"
+    },
+    {
+      "device_name": "USB 18",
+      "alsa_name": "PCM 18"
+    },
+    {
+      "device_name": "USB 19",
+      "alsa_name": "PCM 19"
+    },
+    {
+      "device_name": "USB 20",
+      "alsa_name": "PCM 20"
+    },
+    {
+      "device_name": "Mixer 1",
+      "alsa_name": "Mixer 1"
+    },
+    {
+      "device_name": "Mixer 2",
+      "alsa_name": "Mixer 2"
+    },
+    {
+      "device_name": "Mixer 3",
+      "alsa_name": "Mixer 3"
+    },
+    {
+      "device_name": "Mixer 4",
+      "alsa_name": "Mixer 4"
+    },
+    {
+      "device_name": "Mixer 5",
+      "alsa_name": "Mixer 5"
+    },
+    {
+      "device_name": "Mixer 6",
+      "alsa_name": "Mixer 6"
+    },
+    {
+      "device_name": "Mixer 7",
+      "alsa_name": "Mixer 7"
+    },
+    {
+      "device_name": "Mixer 8",
+      "alsa_name": "Mixer 8"
+    },
+    {
+      "device_name": "Mixer 9",
+      "alsa_name": "Mixer 9"
+    },
+    {
+      "device_name": "Mixer 10",
+      "alsa_name": "Mixer 10"
+    },
+    {
+      "device_name": "Mixer 11",
+      "alsa_name": "Mixer 11"
+    },
+    {
+      "device_name": "Mixer 12",
+      "alsa_name": "Mixer 12"
+    },
+    {
+      "device_name": "Mixer 13",
+      "alsa_name": "Mixer 13"
+    },
+    {
+      "device_name": "Mixer 14",
+      "alsa_name": "Mixer 14"
+    },
+    {
+      "device_name": "Mixer 15",
+      "alsa_name": "Mixer 15"
+    },
+    {
+      "device_name": "Mixer 16",
+      "alsa_name": "Mixer 16"
+    },
+    {
+      "device_name": "Mixer 17",
+      "alsa_name": "Mixer 17"
+    },
+    {
+      "device_name": "Mixer 18",
+      "alsa_name": "Mixer 18"
+    },
+    {
+      "device_name": "Mixer 19",
+      "alsa_name": "Mixer 19"
+    },
+    {
+      "device_name": "Mixer 20",
+      "alsa_name": "Mixer 20"
+    },
+    {
+      "device_name": "Mixer 21",
+      "alsa_name": "Mixer 21"
+    },
+    {
+      "device_name": "Mixer 22",
+      "alsa_name": "Mixer 22"
+    },
+    {
+      "device_name": "Mixer 23",
+      "alsa_name": "Mixer 23"
+    },
+    {
+      "device_name": "Mixer 24",
+      "alsa_name": "Mixer 24"
+    },
+    {
+      "device_name": "Mixer 25",
+      "alsa_name": "Mixer 25"
+    },
+    {
+      "device_name": "Mixer 26",
+      "alsa_name": "Mixer 26"
+    },
+    {
+      "device_name": "Mixer 27",
+      "alsa_name": "Mixer 27"
+    },
+    {
+      "device_name": "Mixer 28",
+      "alsa_name": "Mixer 28"
+    },
+    {
+      "device_name": "Mixer 29",
+      "alsa_name": "Mixer 29"
+    },
+    {
+      "device_name": "Mixer 30",
+      "alsa_name": "Mixer 30"
+    },
+    {
+      "device_name": "Mixer 31",
+      "alsa_name": "Mixer 31"
+    },
+    {
+      "device_name": "Mixer 32",
+      "alsa_name": "Mixer 32"
+    },
+    {
+      "device_name": "Mixer 33",
+      "alsa_name": "Mixer 33"
+    },
+    {
+      "device_name": "Mixer 34",
+      "alsa_name": "Mixer 34"
+    },
+    {
+      "device_name": "Mixer 35",
+      "alsa_name": "Mixer 35"
+    },
+    {
+      "device_name": "Mixer 36",
+      "alsa_name": "Mixer 36"
+    },
+    {
+      "device_name": "Mixer 37",
+      "alsa_name": "Mixer 37"
+    },
+    {
+      "device_name": "Mixer 38",
+      "alsa_name": "Mixer 38"
+    }
+  ]
+}

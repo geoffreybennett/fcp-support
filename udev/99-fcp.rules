@@ -1,0 +1,4 @@
+SUBSYSTEM=="sound", ATTRS{idVendor}=="1235", \
+    KERNEL=="control*", ACTION=="add", \
+    ENV{SYSTEMD_WANTS}="fcp-server@%n.service", \
+    TAG+="systemd"
