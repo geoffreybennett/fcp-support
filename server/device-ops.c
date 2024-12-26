@@ -256,18 +256,6 @@ int device_init_controls(struct fcp_device *device) {
     return -EINVAL;
   }
 
-  err = init_input_controls(device);
-  if (err < 0)
-    return err;
-
-  err = init_output_controls(device);
-  if (err < 0)
-    return err;
-
-  err = init_global_controls(device);
-  if (err < 0)
-    return err;
-
   // Initialise optional subsystems
 
   if (fcp_cap_read(device->hwdep, FCP_OPCODE_CATEGORY_SYNC) > 0)
@@ -281,6 +269,20 @@ int device_init_controls(struct fcp_device *device) {
 
   if (fcp_cap_read(device->hwdep, FCP_OPCODE_CATEGORY_MUX) > 0)
     add_mux_controls(device);
+
+  // Initialise input, output, and global controls
+
+  err = init_input_controls(device);
+  if (err < 0)
+    return err;
+
+  err = init_output_controls(device);
+  if (err < 0)
+    return err;
+
+  err = init_global_controls(device);
+  if (err < 0)
+    return err;
 
   return 0;
 }
