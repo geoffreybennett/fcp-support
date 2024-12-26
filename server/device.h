@@ -57,6 +57,7 @@ struct control_props {
   int    link;
   const unsigned int *tlv;
   char **enum_names;
+  int   *enum_values;
   int    enum_count;
   int    read_only;
   int    notify_client;

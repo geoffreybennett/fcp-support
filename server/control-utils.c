@@ -76,12 +76,39 @@ static int read_single_data_control(
 }
 
 int read_data_control(struct fcp_device *device, struct control_props *props, int *value) {
-  if (!props->component_count)
-    return read_single_data_control(
+  if (!props->component_count) {
+    int read_value, err;
+
+    err = read_single_data_control(
       device, props,
       props->data_type, props->offset, props->array_index,
-      value
+      &read_value
     );
+
+    if (err < 0)
+      return err;
+
+    /* For enumerated controls with explicit values, map the value
+     * back to the index
+     */
+    if (props->type == SND_CTL_ELEM_TYPE_ENUMERATED && props->enum_values) {
+      for (int i = 0; i < props->enum_count; i++) {
+        if (props->enum_values[i] == read_value) {
+          log_debug("Read %s as %s (%d)", props->name, props->enum_names[i], i);
+          *value = i;
+          return 0;
+        }
+      }
+      log_error(
+        "Invalid enumerated value %d for control %s",
+        read_value, props->name
+      );
+      return -1;
+    }
+
+    *value = read_value;
+    return 0;
+  }
 
   for (int i = 0; i < props->component_count; i++) {
     int offset = props->offsets[i];
@@ -115,6 +142,19 @@ int write_data_control(struct fcp_device *device, struct control_props *props, i
   if (props->component_count) {
     log_error("Multi-component control %s cannot be written", props->name);
     return -1;
+  }
+
+  /* For enumerated controls with explicit values, map the index to
+   * the value
+   */
+  if (props->type == SND_CTL_ELEM_TYPE_ENUMERATED && props->enum_values) {
+    if (value < 0 || value >= props->enum_count) {
+      log_error("Invalid enumerated value %d for control %s",
+                value, props->name);
+      return -1;
+    }
+    value = props->enum_values[value];
+    printf("Setting %s to %s (%d)\n", props->name, props->enum_names[value], value);
   }
 
   if (props->data_type == DATA_TYPE_UINT8) {

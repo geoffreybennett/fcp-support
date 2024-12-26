@@ -251,43 +251,97 @@ static int create_global_control(
   const char *type_str = json_object_get_string(type);
   if (!strcmp(type_str, "enum")) {
 
-    /* Get the enumerator key */
-    struct json_object *max_from;
-    if (!json_object_object_get_ex(control_config, "max-from", &max_from)) {
-      log_error("Cannot find max-from for %s", member_path);
-      return -1;
-    }
-
-    /* Look up max value from enums */
-    struct json_object *max_sizes, *enumerators, *count;
-    if (!json_object_object_get_ex(enums, "maximum_array_sizes", &max_sizes) ||
-        !json_object_object_get_ex(max_sizes, "enumerators", &enumerators) ||
-        !json_object_object_get_ex(enumerators, json_object_get_string(max_from), &count)) {
-      log_error("Cannot find enum value for %s", json_object_get_string(max_from));
-      return -1;
-    }
-
     props.type = SND_CTL_ELEM_TYPE_ENUMERATED;
-    props.enum_count = json_object_get_int(count);
 
-    struct json_object *value_format;
-    if (!json_object_object_get_ex(control_config, "label-format", &value_format)) {
-      log_error("Cannot find label-format for %s", member_path);
-      return -1;
-    }
+    struct json_object *max_from, *values;
 
-    const char *format = json_object_get_string(value_format);
-    props.enum_names = calloc(props.enum_count, sizeof(char *));
-    if (!props.enum_names) {
-      log_error("Cannot allocate memory for enum names");
-      exit(1);
-    }
+    /* Directly-specified enum values */
+    if (json_object_object_get_ex(control_config, "values", &values)) {
 
-    for (int i = 0; i < props.enum_count; i++) {
-      if (asprintf(&props.enum_names[i], format, i + 1) < 0) {
-        log_error("Cannot allocate memory for enum name");
+      /* Handle direct enum values */
+      props.type = SND_CTL_ELEM_TYPE_ENUMERATED;
+      props.enum_count = json_object_array_length(values);
+      props.enum_names = calloc(props.enum_count, sizeof(char *));
+      if (!props.enum_names) {
+        log_error("Cannot allocate memory for enum names");
         exit(1);
       }
+
+      /* Check first element to determine format */
+      struct json_object *first = json_object_array_get_idx(values, 0);
+      if (json_object_get_type(first) == json_type_string) {
+        /* Simple string array */
+        for (int i = 0; i < props.enum_count; i++) {
+          props.enum_names[i] = strdup(
+            json_object_get_string(json_object_array_get_idx(values, i))
+          );
+          if (!props.enum_names[i]) {
+            log_error("Cannot allocate memory for enum name");
+            exit(1);
+          }
+        }
+      } else {
+        /* Array of objects with name/value pairs */
+        props.enum_values = calloc(props.enum_count, sizeof(int));
+
+        for (int i = 0; i < props.enum_count; i++) {
+          struct json_object *value = json_object_array_get_idx(values, i);
+          struct json_object *name, *val;
+          if (!json_object_object_get_ex(value, "name", &name)) {
+            log_error("Cannot find name in enum value %d", i);
+            exit(1);
+          }
+          props.enum_names[i] = strdup(json_object_get_string(name));
+          if (!props.enum_names[i]) {
+            log_error("Cannot allocate memory for enum name");
+            exit(1);
+          }
+
+          if (json_object_object_get_ex(value, "value", &val)) {
+            props.enum_values[i] = json_object_get_int(val);
+          } else {
+            props.enum_values[i] = i;
+          }
+        }
+      }
+
+    /* Numbered enum values */
+    } else if (json_object_object_get_ex(control_config, "max-from", &max_from)) {
+
+      /* Look up max value from enums */
+      struct json_object *max_sizes, *enumerators, *count;
+      if (!json_object_object_get_ex(enums, "maximum_array_sizes", &max_sizes) ||
+          !json_object_object_get_ex(max_sizes, "enumerators", &enumerators) ||
+          !json_object_object_get_ex(enumerators, json_object_get_string(max_from), &count)) {
+        log_error("Cannot find enum value for %s", json_object_get_string(max_from));
+        return -1;
+      }
+
+      props.enum_count = json_object_get_int(count);
+
+      struct json_object *value_format;
+      if (!json_object_object_get_ex(control_config, "label-format", &value_format)) {
+        log_error("Cannot find label-format for %s", member_path);
+        return -1;
+      }
+
+      const char *format = json_object_get_string(value_format);
+      props.enum_names = calloc(props.enum_count, sizeof(char *));
+      if (!props.enum_names) {
+        log_error("Cannot allocate memory for enum names");
+        exit(1);
+      }
+
+      for (int i = 0; i < props.enum_count; i++) {
+        if (asprintf(&props.enum_names[i], format, i + 1) < 0) {
+          log_error("Cannot allocate memory for enum name");
+          exit(1);
+        }
+      }
+
+    } else {
+      log_error("Cannot find max-from for %s", member_path);
+      return -1;
     }
 
   } else if (!strcmp(type_str, "bool")) {
