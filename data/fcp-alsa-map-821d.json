@@ -125,6 +125,10 @@
       "name": "Talk Playback Switch",
       "type": "bool"
     },
+    "talkbackOutputMap": {
+      "name": "Talkback Mix %c Playback Switch",
+      "type": "bool-mixer-outputs"
+    },
     "outputSwitch": {
       "name": "Output Playback Switch",
       "type": "bool"
