@@ -574,52 +574,44 @@
       "alsa_name": "Mixer 24"
     },
     {
-      "device_name": "Mixer 25",
+      "device_name": "Mixer 27",
       "alsa_name": "Mixer 25"
     },
     {
-      "device_name": "Mixer 26",
+      "device_name": "Mixer 28",
       "alsa_name": "Mixer 26"
     },
     {
-      "device_name": "Mixer 27",
+      "device_name": "Mixer 29",
       "alsa_name": "Mixer 27"
     },
     {
-      "device_name": "Mixer 28",
+      "device_name": "Mixer 30",
       "alsa_name": "Mixer 28"
     },
     {
-      "device_name": "Mixer 29",
+      "device_name": "Mixer 31",
       "alsa_name": "Mixer 29"
     },
     {
-      "device_name": "Mixer 30",
+      "device_name": "Mixer 32",
       "alsa_name": "Mixer 30"
     },
     {
-      "device_name": "Mixer 31",
+      "device_name": "Mixer 33",
       "alsa_name": "Mixer 31"
     },
     {
-      "device_name": "Mixer 32",
+      "device_name": "Mixer 34",
       "alsa_name": "Mixer 32"
     },
     {
-      "device_name": "Mixer 33",
+      "device_name": "Mixer 35",
       "alsa_name": "Mixer 33"
     },
     {
-      "device_name": "Mixer 34",
-      "alsa_name": "Mixer 34"
-    },
-    {
-      "device_name": "Mixer 35",
-      "alsa_name": "Mixer 35"
-    },
-    {
       "device_name": "Mixer 36",
-      "alsa_name": "Mixer 36"
+      "alsa_name": "Mixer 34"
     }
   ]
 }

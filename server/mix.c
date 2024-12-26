@@ -145,6 +145,68 @@ static int write_mix_control(
 
 static const SNDRV_CTL_TLVD_DECLARE_DB_LINEAR(mix_tlv, SNDRV_CTL_TLVD_DB_GAIN_MUTE, 1200);
 
+static struct json_object *find_destination_by_name(
+  struct json_object *destinations,
+  const char *name
+) {
+  int count = json_object_array_length(destinations);
+
+  for (int i = 0; i < count; i++) {
+    struct json_object *dest = json_object_array_get_idx(destinations, i);
+    struct json_object *dest_name;
+
+    if (!json_object_object_get_ex(dest, "name", &dest_name))
+      continue;
+
+    if (!strcmp(json_object_get_string(dest_name), name))
+      return dest;
+  }
+
+  return NULL;
+}
+
+static int count_mixer_inputs(struct fcp_device *device) {
+  struct json_object *sinks, *spec, *destinations;
+
+  if (!json_object_object_get_ex(device->fam, "sinks", &sinks)) {
+    log_error("Cannot find sinks in ALSA map");
+    return -1;
+  }
+
+  if (!json_object_object_get_ex(device->devmap, "device-specification", &spec) ||
+      !json_object_object_get_ex(spec, "destinations", &destinations)) {
+    log_error("Cannot find device-specification/destinations in device map");
+    return -1;
+  }
+
+  int count = 0;
+  int sink_count = json_object_array_length(sinks);
+
+  for (int i = 0; i < sink_count; i++) {
+    struct json_object *sink = json_object_array_get_idx(sinks, i);
+    struct json_object *device_name;
+
+    if (!json_object_object_get_ex(sink, "device_name", &device_name))
+      continue;
+
+    // Look up this sink in the destinations
+    struct json_object *dest = find_destination_by_name(
+      destinations,
+      json_object_get_string(device_name)
+    );
+
+    if (!dest)
+      continue;
+
+    // Check if it's a mixer input
+    struct json_object *mixer_index;
+    if (json_object_object_get_ex(dest, "mixer-input-index", &mixer_index))
+      count++;
+  }
+
+  return count;
+}
+
 void add_mix_controls(struct fcp_device *device) {
   int num_outputs, num_inputs;
 
@@ -157,18 +219,73 @@ void add_mix_controls(struct fcp_device *device) {
   device->mix_output_count = num_outputs;
   device->mix_input_count = num_inputs;
 
+  device->mix_input_control_count = count_mixer_inputs(device);
+  if (device->mix_input_control_count < 1) {
+    log_error("Cannot find any mixer inputs in ALSA map/device map");
+    return;
+  }
+
   init_mix_cache(device);
 
-  for (int i = 0; i < num_outputs; i++) {
-    for (int j = 0; j < num_inputs; j++) {
-      char control_name[64];
+  struct json_object *sinks, *spec, *destinations;
+  if (!json_object_object_get_ex(device->fam, "sinks", &sinks)) {
+    log_error("Cannot find sinks in ALSA map");
+    return;
+  }
+  if (!json_object_object_get_ex(device->devmap, "device-specification", &spec) ||
+      !json_object_object_get_ex(spec, "destinations", &destinations)) {
+    log_error("Cannot find device-specification/destinations in device map");
+    return;
+  }
 
+  int sink_count = json_object_array_length(sinks);
+
+  /* Create controls for each mix output */
+  for (int i = 0; i < num_outputs; i++) {
+
+    /* For each sink in the ALSA map, check if it's a mixer input and
+     * create a control if it is
+     */
+    for (int j = 0; j < sink_count; j++) {
+      struct json_object *sink = json_object_array_get_idx(sinks, j);
+      struct json_object *device_name, *alsa_name;
+
+      if (!json_object_object_get_ex(sink, "device_name", &device_name) ||
+          !json_object_object_get_ex(sink, "alsa_name", &alsa_name))
+        continue;
+
+      /* Look up this sink in the destinations */
+      struct json_object *dest = find_destination_by_name(
+        destinations,
+        json_object_get_string(device_name)
+      );
+
+      if (!dest)
+        continue;
+
+      /* Check if it's a mixer input */
+      struct json_object *mixer_index;
+      if (!json_object_object_get_ex(dest, "mixer-input-index", &mixer_index))
+        continue;
+      int mix_index = json_object_get_int(mixer_index);
+
+      /* Get the number from alsa_name */
+      const char *alsa_name_str = json_object_get_string(alsa_name);
+      const char *num_str = alsa_name_str + strcspn(alsa_name_str, "0123456789");
+      int num = atoi(num_str);
+      if (num <= 0 || num >  num_inputs) {
+        log_error("Invalid mixer input number %d", num);
+        continue;
+      }
+
+      /* Create a control for this mixer input */
+      char control_name[64];
       snprintf(
         control_name,
         sizeof(control_name),
         "Mix %c Input %02d Playback Volume",
         'A' + i,
-        j + 1
+        num
       );
 
       struct control_props props = {
@@ -183,7 +300,7 @@ void add_mix_controls(struct fcp_device *device) {
         .read_only     = 0,
         .notify_client = 0,
         .notify_device = 0,
-        .offset        = i * num_inputs + j,
+        .offset        = i * num_inputs + mix_index,
         .value         = 0,
         .read_func     = read_mix_control,
         .write_func    = write_mix_control

@@ -39,6 +39,7 @@ struct fcp_device {
   fd_set                  rfds;
   int                     mix_input_count;
   int                     mix_output_count;
+  int                     mix_input_control_count;
   struct mix_cache_entry *mix_cache;
   struct mux_cache       *mux_cache;
   struct control_manager  ctrl_mgr;
