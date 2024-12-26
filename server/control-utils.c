@@ -173,3 +173,82 @@ int write_data_control(struct fcp_device *device, struct control_props *props, i
   int offset = props->offset + props->array_index * width;
   return fcp_data_write(device->hwdep, offset, width, value);
 }
+
+int read_bitmap_data_control(
+  struct fcp_device    *device,
+  struct control_props *props,
+  int                  *value
+) {
+  if (!props->offset) {
+    log_error("Control %s has no offset", props->name);
+    return -1;
+  }
+
+  int width;
+  if (props->data_type == DATA_TYPE_UINT8) {
+    width = 1;
+  } else if (props->data_type == DATA_TYPE_UINT16 ||
+             props->data_type == DATA_TYPE_INT16) {
+    width = 2;
+  } else if (props->data_type == DATA_TYPE_UINT32) {
+    width = 4;
+  } else {
+    log_error("Invalid data type %d for control %s",
+              props->data_type, props->name);
+    return -1;
+  }
+
+  int read_value;
+
+  int err = fcp_data_read(device->hwdep, props->offset, width, false, &read_value);
+  if (err < 0)
+    return err;
+
+  *value = (read_value >> props->array_index) & 1;
+
+  return 0;
+}
+
+int write_bitmap_data_control(
+  struct fcp_device    *device,
+  struct control_props *props,
+  int                   value
+) {
+  if (props->read_only) {
+    log_error("Read-only control %s cannot be written", props->name);
+    return -1;
+  }
+
+  if (!props->offset) {
+    log_error("Control %s has no offset", props->name);
+    return -1;
+  }
+
+  int width;
+  if (props->data_type == DATA_TYPE_UINT8) {
+    width = 1;
+  } else if (props->data_type == DATA_TYPE_UINT16 ||
+             props->data_type == DATA_TYPE_INT16) {
+    width = 2;
+  } else if (props->data_type == DATA_TYPE_UINT32) {
+    width = 4;
+  } else {
+    log_error("Invalid data type %d for control %s",
+              props->data_type, props->name);
+    return -1;
+  }
+
+  int read_value;
+
+  int err = fcp_data_read(device->hwdep, props->offset, width, false, &read_value);
+  if (err < 0)
+    return err;
+
+  int mask = 1 << props->array_index;
+  if (value)
+    read_value |= mask;
+  else
+    read_value &= ~mask;
+
+  return fcp_data_write(device->hwdep, props->offset, width, read_value);
+}

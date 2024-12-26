@@ -137,6 +137,64 @@ static int get_component_info(
   return 0;
 }
 
+static int create_bool_mixer_outputs_controls(
+  const char          *control_name_template,
+  struct fcp_device   *device,
+  const char          *member_path,
+  struct json_object  *control_config
+) {
+  struct json_object *member;
+  const char *member_type;
+  int offset;
+
+  int err = find_member_by_path(
+    device, member_path, &member, &member_type, &offset, false
+  );
+  if (err < 0) {
+    log_error("Cannot find member %s", member_path);
+    return -1;
+  }
+
+  for (int i = 0; i < device->mix_output_count; i++) {
+    char *name;
+
+    if (asprintf(&name, control_name_template, 'A' + i) < 0) {
+      log_error("Cannot allocate memory for control name");
+      exit(1);
+    }
+
+    struct control_props props = {
+      .name          = name,
+      .array_index   = i,
+      .interface     = SND_CTL_ELEM_IFACE_MIXER,
+      .category      = CATEGORY_DATA,
+      .step          = 1,
+      .read_only     = 0,
+      .value         = 0,
+      .read_func     = read_bitmap_data_control,
+      .write_func    = write_bitmap_data_control,
+      .offset        = offset,
+      .data_type     = devmap_type_to_data_type(member_type),
+      .data_types    = NULL,
+      .component_count = 0,
+      .notify_client = json_object_get_int(json_object_object_get(member, "notify-client")),
+      .notify_device = json_object_get_int(json_object_object_get(member, "notify-device")),
+      .type          = SND_CTL_ELEM_TYPE_BOOLEAN,
+      .min           = 0,
+      .max           = 1
+    };
+
+    err = add_control(device, &props);
+    free(name);
+
+    if (err < 0)
+      return err;
+  }
+
+  return 0;
+}
+
+
 /* Create a global control */
 static int create_global_control(
   struct fcp_device  *device,
@@ -153,8 +211,17 @@ static int create_global_control(
     return -1;
   }
 
+  const char *name_str = json_object_get_string(name);
+  const char *type_str = json_object_get_string(type);
+
+  if (!strcmp(type_str, "bool-mixer-outputs")) {
+    return create_bool_mixer_outputs_controls(
+      name_str, device, member_path, control_config
+    );
+  }
+
   struct control_props props = {
-    .name          = strdup(json_object_get_string(name)),
+    .name          = strdup(name_str),
     .array_index   = 0,
     .interface     = SND_CTL_ELEM_IFACE_MIXER,
     .category      = CATEGORY_DATA,
@@ -248,7 +315,6 @@ static int create_global_control(
     json_object_object_get(member, "notify-device")
   );
 
-  const char *type_str = json_object_get_string(type);
   if (!strcmp(type_str, "enum")) {
 
     props.type = SND_CTL_ELEM_TYPE_ENUMERATED;
