@@ -164,7 +164,7 @@ static int handle_server_message(int sock_fd, bool quiet) {
 
     case FCP_SOCKET_RESPONSE_ERROR:
       handle_error_message(payload, header.payload_length);
-      result = 0;
+      result = -1;
       break;
 
     case FCP_SOCKET_RESPONSE_SUCCESS:
