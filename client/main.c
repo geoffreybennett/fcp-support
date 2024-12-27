@@ -431,27 +431,36 @@ static int perform_update(struct command_context *ctx) {
   struct firmware_container *container = ctx->container;
   struct found_card *card = ctx->card;
   bool need_leapfrog = false;
+  bool need_esp = false;
 
-  struct firmware *leapfrog_fw = find_firmware_by_type(container, FIRMWARE_LEAPFROG);
-  if (leapfrog_fw) {
-    printf("Leapfrog firmware found\n");
-    printf("  Check version current: %d.%d.%d.%d, new: %d.%d.%d.%d\n",
-      card->firmware_version[0], card->firmware_version[1],
-      card->firmware_version[2], card->firmware_version[3],
-      leapfrog_fw->firmware_version[0], leapfrog_fw->firmware_version[1],
-      leapfrog_fw->firmware_version[2], leapfrog_fw->firmware_version[3]
-    );
-    if (memcmp(card->firmware_version, leapfrog_fw->firmware_version, 4) != 0)
-      need_leapfrog = true;
+  /* Check if ESP is up to date */
+  struct firmware *esp_fw = find_firmware_by_type(container, FIRMWARE_ESP);
+  if (esp_fw) {
+    if (memcmp(card->esp_firmware_version,
+               esp_fw->firmware_version,
+               sizeof(card->esp_firmware_version)) != 0)
+      need_esp = true;
+  }
+
+  /* If ESP isn't up to date, check if Leapfrog is already loaded */
+  if (need_esp) {
+    struct firmware *leapfrog_fw = find_firmware_by_type(container, FIRMWARE_LEAPFROG);
+    if (leapfrog_fw) {
+      if (memcmp(card->firmware_version,
+                 leapfrog_fw->firmware_version,
+                 sizeof(card->firmware_version)) != 0)
+        need_leapfrog = true;
+    }
   }
 
   for (int i = 0; i < container->num_sections; i++) {
     struct firmware *fw = container->sections[i];
 
-    if (fw->type == FIRMWARE_LEAPFROG && !need_leapfrog) {
-      printf("Skipping Leapfrog firmware - already running\n");
+    if (fw->type == FIRMWARE_LEAPFROG && !need_leapfrog)
       continue;
-    }
+
+    if (fw->type == FIRMWARE_ESP && !need_esp)
+      continue;
 
     if (fw->type == FIRMWARE_LEAPFROG ||
         fw->type == FIRMWARE_APP) {
@@ -613,45 +622,6 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Failed to load firmware file\n");
         result = 1;
       } else {
-
-        // dump container info
-        printf("Firmware container:\n");
-        printf("  USB VID: 0x%04x\n", ctx.container->usb_vid);
-        printf("  USB PID: 0x%04x\n", ctx.container->usb_pid);
-        printf("  Version: %d.%d.%d.%d\n",
-          ctx.container->firmware_version[0], ctx.container->firmware_version[1],
-          ctx.container->firmware_version[2], ctx.container->firmware_version[3]
-        );
-        printf("  Sections: %d\n", ctx.container->num_sections);
-        for (int i = 0; i < ctx.container->num_sections; i++) {
-          struct firmware *fw = ctx.container->sections[i];
-          const char *type_str = firmware_type_to_string(fw->type);
-          printf("  Section %d: %s (%d bytes)\n", i + 1, type_str, fw->firmware_length);
-          printf("    USB VID: 0x%04x\n", fw->usb_vid);
-          printf("    USB PID: 0x%04x\n", fw->usb_pid);
-          printf("    SHA256: ");
-          for (int j = 0; j < SHA256_DIGEST_LENGTH; j++)
-            printf("%02x", fw->sha256[j]);
-          printf("\n");
-          printf("    MD5: ");
-          for (int j = 0; j < MD5_DIGEST_LENGTH; j++)
-            printf("%02x", fw->md5[j]);
-          printf("\n");
-          printf("    Version: %d.%d.%d.%d\n",
-            fw->firmware_version[0], fw->firmware_version[1],
-            fw->firmware_version[2], fw->firmware_version[3]
-          );
-          printf("\n");
-        }
-
-        // prompt user to continue
-        printf("Continue? [y/N] ");
-        char c = getchar();
-        if (c != 'y' && c != 'Y') {
-          printf("Aborted\n");
-          return 0;
-        }
-
         result = execute_command(&ctx, cmd);
       }
     }
