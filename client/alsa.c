@@ -1,10 +1,18 @@
 // SPDX-FileCopyrightText: 2024 Geoffrey D. Bennett <g@b4.vu>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <sys/un.h>
+
 #include "alsa.h"
+#include "devices.h"
+#include "usb.h"
 
 #define MAX_TLV_RANGE_SIZE 1024
 
@@ -28,7 +36,7 @@ static int get_usb_id(const char *card_name, int *out_vid, int *out_pid) {
   if (sscanf(usbid, "%x:%x", &vid, &pid) != 2)
     return 0;
 
-  if (vid != 0x1235)
+  if (vid != VENDOR_VID)
     return 0;
 
   *out_vid = vid;
@@ -175,9 +183,9 @@ static void get_firmware_version(
     version[i] = snd_ctl_elem_value_get_integer(value, i);
 }
 
-// Enumerate all cards and return an array of found_card pointers
-struct found_card **enumerate_cards(int *count, bool quiet) {
-  struct found_card **cards = NULL;
+// Enumerate all cards and return an array of sound_card pointers
+struct sound_card **enum_cards(int *count, bool quiet) {
+  struct sound_card **cards = NULL;
   *count = 0;
   int card_num = -1;
 
@@ -193,8 +201,19 @@ struct found_card **enumerate_cards(int *count, bool quiet) {
     if (!get_usb_id(card_name, &vid, &pid))
       goto next;
 
+    char *serial = get_device_serial(card_num);
+
+    if (!serial) {
+      fprintf(stderr, "Failed to get device serial number\n");
+      return NULL;
+    }
+
     char alsa_name[32];
     snprintf(alsa_name, sizeof(alsa_name), "hw:%d", card_num);
+
+    struct supported_device *dev = get_supported_device_by_pid(pid);
+    if (!dev)
+      goto next;
 
     if (snd_ctl_open(&ctl, alsa_name, 0) < 0) {
       fprintf(
@@ -227,15 +246,18 @@ struct found_card **enumerate_cards(int *count, bool quiet) {
       exit(1);
     }
 
-    struct found_card *card = calloc(1, sizeof(*card));
+    struct sound_card *card = calloc(1, sizeof(*card));
     cards[*count - 1] = card;
 
     card->card_num = card_num;
     card->usb_vid = vid;
     card->usb_pid = pid;
     card->card_name = strdup(card_name);
+    card->serial = serial;
+    card->product_name = strdup(dev->name);
     card->alsa_name = strdup(alsa_name);
     card->socket_path = socket_path;
+    card->socket_fd = -1;
     memcpy(
       card->firmware_version,
       firmware_version,
@@ -259,11 +281,91 @@ next:
   return cards;
 }
 
-void free_found_card(struct found_card *card) {
+int connect_to_server(struct sound_card *card) {
+  int sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+  if (sock_fd < 0) {
+    perror("Cannot create socket");
+    return -1;
+  }
+
+  struct sockaddr_un addr = {
+    .sun_family = AF_UNIX
+  };
+  strncpy(addr.sun_path, card->socket_path, sizeof(addr.sun_path) - 1);
+
+  if (connect(sock_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+    char *s;
+    if (asprintf(&s, "Cannot connect to server at %s", addr.sun_path) < 0)
+      perror("Cannot connect to server");
+    else
+      perror(s);
+    return -1;
+  }
+
+  card->socket_fd = sock_fd;
+
+  return 0;
+}
+
+// Wait for server to disconnect after sending a reboot command
+// (should happen in <1ms)
+int wait_for_disconnect(struct sound_card *card) {
+  fd_set rfds;
+  struct timeval tv, start_time, now;
+  const int TIMEOUT_SECS = 1;
+  char buf[1];
+
+  gettimeofday(&start_time, NULL);
+
+  while (1) {
+    FD_ZERO(&rfds);
+    FD_SET(card->socket_fd, &rfds);
+
+    gettimeofday(&now, NULL);
+    int elapsed = now.tv_sec - start_time.tv_sec;
+    if (elapsed >= TIMEOUT_SECS) {
+      fprintf(stderr, "Timeout waiting for server disconnect\n");
+      return -1;
+    }
+
+    tv.tv_sec = TIMEOUT_SECS - elapsed;
+    tv.tv_usec = 0;
+
+    int ret = select(card->socket_fd + 1, &rfds, NULL, NULL, &tv);
+    if (ret < 0) {
+      if (errno == EINTR)
+        continue;
+      perror("select");
+      return -1;
+    }
+
+    if (ret > 0) {
+      // Try to read one byte
+      ssize_t n = read(card->socket_fd, buf, 1);
+      if (n < 0) {
+        if (errno == EINTR || errno == EAGAIN)
+          continue;
+        perror("read");
+        return -1;
+      }
+      if (n == 0) {
+        // EOF received - server has disconnected
+        return 0;
+      }
+      // Ignore any data received, just keep waiting for EOF
+    }
+  }
+}
+
+void free_sound_card(struct sound_card *card) {
   if (!card)
     return;
   free(card->card_name);
+  free(card->serial);
+  free(card->product_name);
   free(card->alsa_name);
   free(card->socket_path);
+  if (card->socket_fd >= 0)
+    close(card->socket_fd);
   free(card);
 }

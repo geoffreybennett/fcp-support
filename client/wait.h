@@ -5,9 +5,8 @@
 
 #include "alsa.h"
 
-struct device_wait {
-  const char *serial;  // Expected serial number
-  int         timeout; // How long to wait in seconds
-};
-
-int wait_for_device(struct device_wait *wait, struct found_card **found);
+int wait_for_device(
+  const char         *serial,  // Expected serial number
+  int                 timeout, // How long to wait in seconds
+  struct sound_card **card     // Output: sound card
+);
