@@ -14,64 +14,34 @@
 #include "log.h"
 
 static int add_meter_mapping_info(struct fcp_device *device, int map_size, char **labels) {
-  snd_ctl_elem_id_t *id;
-  snd_ctl_elem_info_t *info;
-  int err;
+  struct fcp_meter_labels *fcp_labels;
 
-  snd_ctl_elem_id_alloca(&id);
-  snd_ctl_elem_info_alloca(&info);
+  // Calculate the total size of the labels
+  unsigned int labels_size = 0;
+  for (int i = 0; i < map_size; i++)
+    labels_size += strlen(labels[i]) + 1;
 
-  snd_ctl_elem_id_set_interface(id, SND_CTL_ELEM_IFACE_PCM);
-  snd_ctl_elem_id_set_name(id, "Level Meter");
-  snd_ctl_elem_id_set_index(id, 0);
-
-  snd_ctl_elem_info_set_id(info, id);
-  err = snd_ctl_elem_info(device->ctl, info);
-  if (err < 0) {
-    log_error(
-      "Failed to get element info for %s: %s",
-      snd_ctl_elem_id_get_name(id),
-      snd_strerror(err)
-    );
-    return err;
-  }
-
-  // Create TLV structure
-  unsigned int total_size = 0;
-  for (int i = 0; i < map_size; i++) {
-    total_size += strlen(labels[i]) + 1;
-  }
-
-  // Bump up to sizeof(unsigned int) boundary
-  int align = sizeof(unsigned int) - 1;
-  total_size = (total_size + align) & ~align;
-
-  unsigned int *tlv = calloc(2 + total_size / 4, sizeof(unsigned int));
-  if (!tlv) {
+  fcp_labels = calloc(sizeof(*fcp_labels) + labels_size, 1);
+  if (!fcp_labels) {
     log_error("Cannot allocate TLV memory");
     return -ENOMEM;
   }
 
-  tlv[0] = 72275388;
-  tlv[1] = total_size;
+  fcp_labels->labels_size = labels_size;
 
-  char *data = (char *)&tlv[2];
+  // Copy the labels into fcp_labels->labels
+  char *data = fcp_labels->labels;
   for (int i = 0; i < map_size; i++) {
     strcpy(data, labels[i]);
     data += strlen(labels[i]) + 1;
   }
 
   // Set the TLV
-  err = snd_ctl_elem_tlv_write(device->ctl, id, tlv);
-  if (err < 0) {
-    log_error(
-      "Failed to write TLV for %s: %s",
-      snd_ctl_elem_id_get_name(id),
-      snd_strerror(err)
-    );
-  }
+  int err = snd_hwdep_ioctl(device->hwdep, FCP_IOCTL_SET_METER_LABELS, fcp_labels);
+  if (err < 0)
+    log_error("Cannot set meter labels: %s", snd_strerror(err));
 
-  free(tlv);
+  free(fcp_labels);
   return err;
 }
 
@@ -79,13 +49,11 @@ void add_meter_control(struct fcp_device *device) {
   struct json_object *spec, *sources, *sinks;
   struct json_object *control_sources, *control_sinks;
   int num_meter_slots;
-  struct fcp_meter_map map = {0};
   char **labels = NULL;
   int meter_idx = 0;
   int err;
 
   fcp_meter_info(device->hwdep, &num_meter_slots);
-  map.meter_slots = num_meter_slots;
 
   /* Get device specification */
   if (!json_object_object_get_ex(device->devmap, "device-specification", &spec)) {
@@ -112,6 +80,7 @@ void add_meter_control(struct fcp_device *device) {
                  json_object_array_length(control_sinks);
 
   int16_t *meter_map = calloc(map_size, sizeof(int16_t));
+
   labels = calloc(map_size, sizeof(char *));
   if (!meter_map || !labels) {
     log_error("Cannot allocate meter map/label map");
@@ -148,7 +117,7 @@ void add_meter_control(struct fcp_device *device) {
       if (json_object_object_get_ex(source, "peak-index", &peak_index)) {
         int idx = json_object_get_int(peak_index);
 
-        if (idx < 0 || idx >= map.meter_slots) {
+        if (idx < 0 || idx >= num_meter_slots) {
           log_error("Invalid peak index %d", idx);
           err = -1;
           goto done;
@@ -197,7 +166,7 @@ void add_meter_control(struct fcp_device *device) {
       if (json_object_object_get_ex(sink, "peak-index", &peak_index)) {
         int idx = json_object_get_int(peak_index);
 
-        if (idx < 0 || idx >= map.meter_slots) {
+        if (idx < 0 || idx >= num_meter_slots) {
           log_error("Invalid peak index %d", idx);
           err = -1;
           goto done;
@@ -225,8 +194,12 @@ void add_meter_control(struct fcp_device *device) {
   }
 
   /* Configure meter mapping */
-  map.map = meter_map;
-  map.map_size = meter_idx;
+  struct fcp_meter_map *map = calloc(
+    1, sizeof(struct fcp_meter_map) + map_size * sizeof(int16_t)
+  );
+  map->meter_slots = num_meter_slots;
+  map->map_size = meter_idx;
+  memcpy(map->map, meter_map, meter_idx * sizeof(int16_t));
 
   {
     char s[1024] = "Meter map:";
@@ -234,12 +207,12 @@ void add_meter_control(struct fcp_device *device) {
     for (int i = 0; i < meter_idx; i++)
       p += sprintf(p, " %d", meter_map[i]);
     log_debug("%s", s);
-    log_debug("Meter slots: %d", map.meter_slots);
-    log_debug("Map size: %d", map.map_size);
+    log_debug("Meter slots: %d", map->meter_slots);
+    log_debug("Map size: %d", map->map_size);
   }
 
   /* Send meter map to driver */
-  err = snd_hwdep_ioctl(device->hwdep, FCP_IOCTL_SET_METER_MAP, &map);
+  err = snd_hwdep_ioctl(device->hwdep, FCP_IOCTL_SET_METER_MAP, map);
   if (err < 0)
     log_error("Cannot set meter map: %s", snd_strerror(err));
 

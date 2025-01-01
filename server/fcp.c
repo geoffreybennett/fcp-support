@@ -43,13 +43,19 @@
 
 #define FCP_CMD_CONFIG_SAVE 6
 
+#define FCP_STEP0_SIZE 24
+#define FCP_STEP2_SIZE 84
+
 /* Initialise the device */
 void fcp_init(snd_hwdep_t *hwdep) {
   int err;
-  struct fcp_step0 step0;
-  struct fcp_cmd cmd;
-  uint8_t step0_buf[24] = {0};
-  uint8_t step2_buf[84] = {0};
+  int total_size = sizeof(struct fcp_init) + FCP_STEP0_SIZE + FCP_STEP2_SIZE;
+  struct fcp_init *init = calloc(1, total_size);
+
+  if (!init) {
+    log_error("Cannot allocate memory for FCP init");
+    exit(1);
+  }
 
   /* Check protocol version */
   int version;
@@ -87,44 +93,28 @@ void fcp_init(snd_hwdep_t *hwdep) {
     exit(1);
   }
 
-  /* Step 0: Get initial data */
-  memset(&step0, 0, sizeof(step0));
-  step0.data = step0_buf;
-  step0.size = sizeof(step0_buf);
+  /* Initialise FCP */
+  init->step0_resp_size = FCP_STEP0_SIZE;
+  init->step2_resp_size = FCP_STEP2_SIZE;
+  init->init1_opcode = FCP_OPCODE_INIT_1;
+  init->init2_opcode = FCP_OPCODE_INIT_2;
 
-  err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_INIT, &step0);
+  err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_INIT, init);
   if (err < 0) {
-    log_error("FCP step 0 failed: %s", snd_strerror(err));
+    if (err == -ENOTTY) {
+      log_error(
+        "FCP init failed: %s (check the kernel FCP driver version)",
+        snd_strerror(err)
+      );
+    } else {
+      log_error("FCP init failed: %s", snd_strerror(err));
+    }
     exit(1);
   }
 
-  /* Step 1: Send INIT_1 command */
-  memset(&cmd, 0, sizeof(cmd));
-  cmd.opcode = FCP_OPCODE_INIT_1;
-  cmd.req = NULL;
-  cmd.req_size = 0;
-  cmd.resp = NULL;
-  cmd.resp_size = 0;
-
-  err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
-  if (err < 0) {
-    log_error("FCP step 1 failed: %s", snd_strerror(err));
-    exit(1);
-  }
-
-  /* Step 2: Send INIT_2 command and get firmware version */
-  memset(&cmd, 0, sizeof(cmd));
-  cmd.opcode = FCP_OPCODE_INIT_2;
-  cmd.req = NULL;
-  cmd.req_size = 0;
-  cmd.resp = step2_buf;
-  cmd.resp_size = sizeof(step2_buf);
-
-  err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
-  if (err < 0) {
-    log_error("FCP step 2 failed: %s", snd_strerror(err));
-    exit(1);
-  }
+  /* dump step0_buf and step2_buf contained within init data */
+  __u8 *step0_buf = (__u8 *)init + sizeof(struct fcp_init);
+  __u8 *step2_buf = step0_buf + FCP_STEP0_SIZE;
 
   /* Extract firmware version from step2_buf[8] */
   uint32_t firmware_version;
@@ -133,61 +123,78 @@ void fcp_init(snd_hwdep_t *hwdep) {
   log_debug("Firmware version: %d", firmware_version);
 }
 
+static int fcp_cmd(
+  snd_hwdep_t *hwdep,
+  uint32_t     opcode,
+  const void  *req,
+  size_t       req_size,
+  void        *resp,
+  size_t       resp_size
+) {
+  int buf_size = req_size > resp_size ? req_size : resp_size;
+  int total_size = sizeof(struct fcp_cmd) + buf_size;
+  struct fcp_cmd *cmd = calloc(1, total_size);
+
+  if (!cmd) {
+    log_error("Cannot allocate memory for FCP command");
+    exit(1);
+  }
+
+  cmd->opcode = opcode;
+  cmd->req_size = req_size;
+  cmd->resp_size = resp_size;
+
+  if (req)
+    memcpy(cmd->data, req, req_size);
+
+  int err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, cmd);
+  if (err >= 0 && resp)
+    memcpy(resp, cmd->data, resp_size);
+
+  free(cmd);
+
+  return err;
+}
+
 int fcp_cap_read(snd_hwdep_t *hwdep, int opcode_category) {
-  struct fcp_cmd cmd;
-  uint16_t opcode_category_req = htole16(opcode_category);
-  uint8_t supported = 0;
+  uint16_t req = htole16(opcode_category);
+  uint8_t resp = 0;
 
-  /* Set up command structure */
-  cmd.opcode = FCP_OPCODE_CAP_READ;
-  cmd.req = &opcode_category_req;
-  cmd.req_size = sizeof(opcode_category_req);
-  cmd.resp = &supported;
-  cmd.resp_size = sizeof(supported);
+  int err = fcp_cmd(
+    hwdep,
+    FCP_OPCODE_CAP_READ,
+    &req, sizeof(req),
+    &resp, sizeof(resp)
+  );
 
-  /* Send command */
-  int err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
   if (err < 0) {
     log_error("Get capabilities failed: %s", snd_strerror(err));
     return err;
   }
 
-  return supported;
+  return resp;
 }
 
 /* Reboot the device */
 int fcp_reboot(snd_hwdep_t *hwdep) {
-  struct fcp_cmd cmd;
-
-  /* Set up command structure */
-  cmd.opcode = FCP_OPCODE_REBOOT;
-  cmd.req = NULL;
-  cmd.req_size = 0;
-  cmd.resp = NULL;
-  cmd.resp_size = 0;
-
-  /* Send command */
-  int err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
+  int err = fcp_cmd(hwdep, FCP_OPCODE_REBOOT, NULL, 0, NULL, 0);
   if (err < 0)
     log_error("Reboot failed: %s", snd_strerror(err));
 
   return err;
 }
 
-/* Display meter info */
+/* Return meter info */
 int fcp_meter_info(snd_hwdep_t *hwdep, int *num_meter_slots) {
-  struct fcp_cmd cmd;
   uint8_t resp[4] = {0};
 
-  /* Set up command structure */
-  cmd.opcode = FCP_OPCODE_METER_INFO;
-  cmd.req = NULL;
-  cmd.req_size = 0;
-  cmd.resp = resp;
-  cmd.resp_size = sizeof(resp);
+  int err = fcp_cmd(
+    hwdep,
+    FCP_OPCODE_METER_INFO,
+    NULL, 0,
+    resp, sizeof(resp)
+  );
 
-  /* Send command */
-  int err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
   if (err < 0) {
     log_error("Get meter info failed: %s", snd_strerror(err));
     return err;
@@ -199,7 +206,6 @@ int fcp_meter_info(snd_hwdep_t *hwdep, int *num_meter_slots) {
 }
 
 int fcp_meter_read(snd_hwdep_t *hwdep, int count, int *value) {
-  struct fcp_cmd cmd;
   struct {
     uint16_t offset;
     uint16_t count;
@@ -218,15 +224,13 @@ int fcp_meter_read(snd_hwdep_t *hwdep, int count, int *value) {
   req.count = htole16(count);
   req.pad = 0;
 
-  /* Set up command structure */
-  cmd.opcode = FCP_OPCODE_METER_READ;
-  cmd.req = &req;
-  cmd.req_size = sizeof(req);
-  cmd.resp = resp;
-  cmd.resp_size = resp_size;
+  int err = fcp_cmd(
+    hwdep,
+    FCP_OPCODE_METER_READ,
+    &req, sizeof(req),
+    resp, resp_size
+  );
 
-  /* Send command */
-  int err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
   if (err < 0) {
     log_error("Get meter failed: %s", snd_strerror(err));
     goto done;
@@ -242,18 +246,15 @@ done:
 
 /* Return mix info (I/O count) */
 int fcp_mix_info(snd_hwdep_t *hwdep, int *num_outputs, int *num_inputs) {
-  struct fcp_cmd cmd;
   uint8_t resp[8] = {0};
 
-  /* Set up command structure */
-  cmd.opcode = FCP_OPCODE_MIX_INFO;
-  cmd.req = NULL;
-  cmd.req_size = 0;
-  cmd.resp = resp;
-  cmd.resp_size = sizeof(resp);
+  int err = fcp_cmd(
+    hwdep,
+    FCP_OPCODE_MIX_INFO,
+    NULL, 0,
+    resp, sizeof(resp)
+  );
 
-  /* Send command */
-  int err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
   if (err < 0) {
     log_error("Get mix info failed: %s", snd_strerror(err));
     return err;
@@ -275,7 +276,6 @@ int fcp_mix_info(snd_hwdep_t *hwdep, int *num_outputs, int *num_inputs) {
 
 /* Read mix data */
 int fcp_mix_read(snd_hwdep_t *hwdep, int mix_num, int count, int *values) {
-  struct fcp_cmd cmd;
   struct {
     uint16_t mix_num;
     uint16_t count;
@@ -292,17 +292,16 @@ int fcp_mix_read(snd_hwdep_t *hwdep, int mix_num, int count, int *values) {
   req.mix_num = htole16(mix_num);
   req.count = htole16(count);
 
-  /* Set up command structure */
-  cmd.opcode = FCP_OPCODE_MIX_READ;
-  cmd.req = &req;
-  cmd.req_size = sizeof(req);
-  cmd.resp = resp;
-  cmd.resp_size = resp_size;
+  int err = fcp_cmd(
+    hwdep,
+    FCP_OPCODE_MIX_READ,
+    &req, sizeof(req),
+    resp, resp_size
+  );
 
-  /* Send command */
-  int err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
   if (err < 0) {
     log_error("Get mix failed: %s", snd_strerror(err));
+    free(resp);
     return err;
   }
 
@@ -311,13 +310,11 @@ int fcp_mix_read(snd_hwdep_t *hwdep, int mix_num, int count, int *values) {
   }
 
   free(resp);
-
   return 0;
 }
 
 /* Write mix data */
 int fcp_mix_write(snd_hwdep_t *hwdep, int mix_num, int count, int *values) {
-  struct fcp_cmd cmd;
   int req_size = sizeof(uint16_t) * (count + 1);
   struct {
     uint16_t mix_num;
@@ -334,37 +331,31 @@ int fcp_mix_write(snd_hwdep_t *hwdep, int mix_num, int count, int *values) {
   for (int i = 0; i < count; i++)
     req->values[i] = htole16(values[i]);
 
-  /* Set up command structure */
-  cmd.opcode = FCP_OPCODE_MIX_WRITE;
-  cmd.req = req;
-  cmd.req_size = req_size;
-  cmd.resp = NULL;
-  cmd.resp_size = 0;
+  int err = fcp_cmd(
+    hwdep,
+    FCP_OPCODE_MIX_WRITE,
+    req, req_size,
+    NULL, 0
+  );
 
-  /* Send command */
-  int err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
   if (err < 0)
     log_error("Set mix failed: %s", snd_strerror(err));
 
   free(req);
-
   return err;
 }
 
 /* Retrieve mux info in 3-element array */
 int fcp_mux_info(snd_hwdep_t *hwdep, int *values) {
-  struct fcp_cmd cmd;
   uint16_t resp[6] = {0};
 
-  /* Set up command structure */
-  cmd.opcode = FCP_OPCODE_MUX_INFO;
-  cmd.req = NULL;
-  cmd.req_size = 0;
-  cmd.resp = resp;
-  cmd.resp_size = sizeof(resp);
+  int err = fcp_cmd(
+    hwdep,
+    FCP_OPCODE_MUX_INFO,
+    NULL, 0,
+    resp, sizeof(resp)
+  );
 
-  /* Send command */
-  int err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
   if (err < 0) {
     log_error("Get mux info failed: %s", snd_strerror(err));
     return err;
@@ -391,16 +382,16 @@ int fcp_mux_read(
   int          count,
   uint32_t    *values
 ) {
-  struct fcp_cmd cmd;
   struct {
     uint8_t offset;
     uint8_t pad;
     uint8_t count;
     uint8_t mux_num;
   } __attribute__((packed)) req;
-  int resp_size = sizeof(uint32_t) * count;
-  uint32_t *resp = calloc(1, resp_size);
 
+  /* Allocate response buffer */
+  size_t resp_size = sizeof(uint32_t) * count;
+  uint32_t *resp = calloc(count, sizeof(uint32_t));
   if (!resp) {
     log_error("Cannot allocate memory for mux read");
     return -ENOMEM;
@@ -412,15 +403,13 @@ int fcp_mux_read(
   req.count = htole16(count);
   req.mux_num = htole16(mux_num);
 
-  /* Set up command structure */
-  cmd.opcode = FCP_OPCODE_MUX_READ;
-  cmd.req = &req;
-  cmd.req_size = sizeof(req);
-  cmd.resp = resp;
-  cmd.resp_size = resp_size;
-
   /* Send command */
-  int err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
+  int err = fcp_cmd(
+    hwdep,
+    FCP_OPCODE_MUX_READ,
+    &req, sizeof(req),
+    resp, resp_size
+  );
   if (err < 0) {
     log_error("Get mux failed: %s", snd_strerror(err));
     free(resp);
@@ -442,7 +431,6 @@ int fcp_mux_write(
   int          count,
   uint32_t    *values
 ) {
-  struct fcp_cmd cmd;
   int req_size = sizeof(uint16_t) * 2 + sizeof(uint32_t) * count;
   struct {
     uint16_t pad;
@@ -462,15 +450,13 @@ int fcp_mux_write(
     req->values[i] = htole32(values[i]);
   }
 
-  /* Set up command structure */
-  cmd.opcode = FCP_OPCODE_MUX_WRITE;
-  cmd.req = req;
-  cmd.req_size = req_size;
-  cmd.resp = NULL;
-  cmd.resp_size = 0;
+  int err = fcp_cmd(
+    hwdep,
+    FCP_OPCODE_MUX_WRITE,
+    req, req_size,
+    NULL, 0
+  );
 
-  /* Send command */
-  int err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
   if (err < 0)
     log_error("Set mux failed: %s", snd_strerror(err));
 
@@ -480,22 +466,19 @@ int fcp_mux_write(
 
 /* Read flash info */
 int fcp_flash_info(snd_hwdep_t *hwdep, int *size, int *count) {
-  struct fcp_cmd cmd;
   struct {
     uint32_t size;
     uint32_t count;
     uint8_t  unknown[8];
   } __attribute__((packed)) resp;
 
-  /* Set up command structure */
-  cmd.opcode = FCP_OPCODE_FLASH_INFO;
-  cmd.req = NULL;
-  cmd.req_size = 0;
-  cmd.resp = &resp;
-  cmd.resp_size = sizeof(resp);
+  int err = fcp_cmd(
+    hwdep,
+    FCP_OPCODE_FLASH_INFO,
+    NULL, 0,
+    &resp, sizeof(resp)
+  );
 
-  /* Send command */
-  int err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
   if (err < 0) {
     log_error("Get flash info failed: %s", snd_strerror(err));
     return err;
@@ -528,24 +511,20 @@ int fcp_flash_segment_info(
   uint32_t     *flags,
   char        **name
 ) {
-  struct fcp_cmd cmd;
-  uint32_t segment_num_req = htole32(segment_num);
-
+  uint32_t req = htole32(segment_num);
   struct {
     uint32_t size;
     uint32_t flags;
     char     name[16];
   } __attribute__((packed)) resp;
 
-  /* Set up command structure */
-  cmd.opcode = FCP_OPCODE_FLASH_SEGMENT_INFO;
-  cmd.req = &segment_num_req;
-  cmd.req_size = sizeof(segment_num_req);
-  cmd.resp = &resp;
-  cmd.resp_size = sizeof(resp);
+  int err = fcp_cmd(
+    hwdep,
+    FCP_OPCODE_FLASH_SEGMENT_INFO,
+    &req, sizeof(req),
+    &resp, sizeof(resp)
+  );
 
-  /* Send command */
-  int err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
   if (err < 0) {
     log_error("Get flash segment info failed: %s", snd_strerror(err));
     return err;
@@ -578,7 +557,6 @@ int fcp_flash_segment_info(
 
 /* Erase a flash segment */
 int fcp_flash_erase(snd_hwdep_t *hwdep, int segment_num) {
-  struct fcp_cmd cmd;
   struct {
     uint8_t  segment_num;
     uint8_t  pad[7];
@@ -592,15 +570,13 @@ int fcp_flash_erase(snd_hwdep_t *hwdep, int segment_num) {
     return -EINVAL;
   }
 
-  /* Set up command structure */
-  cmd.opcode = FCP_OPCODE_FLASH_ERASE;
-  cmd.req = &req;
-  cmd.req_size = sizeof(req);
-  cmd.resp = NULL;
-  cmd.resp_size = 0;
+  int err = fcp_cmd(
+    hwdep,
+    FCP_OPCODE_FLASH_ERASE,
+    &req, sizeof(req),
+    NULL, 0
+  );
 
-  /* Send command */
-  int err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
   if (err < 0) {
     log_error("Flash erase failed: %s", snd_strerror(err));
     return err;
@@ -611,32 +587,27 @@ int fcp_flash_erase(snd_hwdep_t *hwdep, int segment_num) {
 
 /* Get flash erase progress */
 int fcp_flash_erase_progress(snd_hwdep_t *hwdep, int segment_num) {
-  struct fcp_cmd cmd;
   struct {
     uint32_t segment_num;
     uint32_t pad;
-  } __attribute__((packed)) req;
-  uint8_t progress;
+  } __attribute__((packed)) req = {0};
+  uint8_t resp;
 
   /* Prepare request data */
   req.segment_num = htole32(segment_num);
-  req.pad = 0;
-
-  /* Set up command structure */
-  cmd.opcode = FCP_OPCODE_FLASH_ERASE_PROGRESS;
-  cmd.req = &req;
-  cmd.req_size = sizeof(req);
-  cmd.resp = &progress;
-  cmd.resp_size = sizeof(progress);
 
   /* Send command */
-  int err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
+  int err = fcp_cmd(
+    hwdep,
+    FCP_OPCODE_FLASH_ERASE_PROGRESS,
+    &req, sizeof(req),
+    &resp, sizeof(resp));
   if (err < 0) {
     log_error("Get flash erase progress failed: %s", snd_strerror(err));
     return err;
   }
 
-  return progress;
+  return resp;
 }
 
 /* Write data to flash */
@@ -657,7 +628,6 @@ int fcp_flash_write(
     return -EINVAL;
   }
 
-  struct fcp_cmd cmd;
   int req_size = sizeof(uint32_t) * 3 + size;
   struct {
     uint32_t segment_num;
@@ -676,15 +646,13 @@ int fcp_flash_write(
   req->offset = htole32(offset);
   memcpy(req->data, data, size);
 
-  /* Set up command structure */
-  cmd.opcode = FCP_OPCODE_FLASH_WRITE;
-  cmd.req = req;
-  cmd.req_size = req_size;
-  cmd.resp = NULL;
-  cmd.resp_size = 0;
+  int err = fcp_cmd(
+    hwdep,
+    FCP_OPCODE_FLASH_WRITE,
+    req, req_size,
+    NULL, 0
+  );
 
-  /* Send command */
-  int err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
   if (err < 0)
     log_error("Flash write failed: %s", snd_strerror(err));
 
@@ -694,18 +662,15 @@ int fcp_flash_write(
 
 /* Read the sync status */
 int fcp_sync_read(snd_hwdep_t *hwdep) {
-  struct fcp_cmd cmd;
   uint32_t buf = 0;
 
-  /* Set up command structure */
-  cmd.opcode = FCP_OPCODE_SYNC_READ;
-  cmd.req = NULL;
-  cmd.req_size = 0;
-  cmd.resp = &buf;
-  cmd.resp_size = sizeof(buf);
-
   /* Send command */
-  int err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
+  int err = fcp_cmd(
+    hwdep,
+    FCP_OPCODE_SYNC_READ,
+    NULL, 0,
+    &buf, sizeof(buf)
+  );
   if (err < 0) {
     log_error("Read sync failed: %s", snd_strerror(err));
     return err;
@@ -716,40 +681,32 @@ int fcp_sync_read(snd_hwdep_t *hwdep) {
 
 /* Start ESP DFU */
 int fcp_esp_dfu_start(snd_hwdep_t *hwdep, uint32_t length, const uint8_t *md5_hash) {
-  struct fcp_cmd cmd;
   struct {
     uint32_t offset;
     uint32_t length;
     uint8_t  md5_hash[16];
-  } __attribute__((packed)) req;
+  } __attribute__((packed)) req = {0};
 
   // Prepare request
-  req.offset = 0;
   req.length = htole32(length);
   memcpy(req.md5_hash, md5_hash, 16);
 
-  // Set up command
-  cmd.opcode = FCP_OPCODE_ESP_DFU_START;
-  cmd.req = &req;
-  cmd.req_size = sizeof(req);
-  cmd.resp = NULL;
-  cmd.resp_size = 0;
-
-  return snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
+  return fcp_cmd(
+    hwdep,
+    FCP_OPCODE_ESP_DFU_START,
+    &req, sizeof(req),
+    NULL, 0
+  );
 }
 
 /* Write ESP DFU data */
 int fcp_esp_dfu_write(snd_hwdep_t *hwdep, const void *data, size_t count) {
-  struct fcp_cmd cmd;
-
-  // Set up command
-  cmd.opcode = FCP_OPCODE_ESP_DFU_WRITE;
-  cmd.req = data;
-  cmd.req_size = count;
-  cmd.resp = NULL;
-  cmd.resp_size = 0;
-
-  return snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
+  return fcp_cmd(
+    hwdep,
+    FCP_OPCODE_ESP_DFU_WRITE,
+    data, count,
+    NULL, 0
+  );
 }
 
 /* Read 1/2/4 data bytes */
@@ -760,7 +717,6 @@ int fcp_data_read(
   bool         is_signed,
   int          *value
 ) {
-  struct fcp_cmd cmd;
   struct {
     uint32_t offset;
     uint32_t size;
@@ -771,15 +727,11 @@ int fcp_data_read(
   req.offset = htole32(offset);
   req.size = htole32(size);
 
-  /* Set up command structure */
-  cmd.opcode = FCP_OPCODE_DATA_READ;
-  cmd.req = &req;
-  cmd.req_size = sizeof(req);
-  cmd.resp = &resp;
-  cmd.resp_size = size;
-
   /* Send command */
-  int err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
+  int err = fcp_cmd(
+    hwdep,
+    FCP_OPCODE_DATA_READ,
+    &req, sizeof(req), &resp, size);
   if (err < 0) {
     log_error("Get data failed: %s", snd_strerror(err));
     return err;
@@ -812,7 +764,6 @@ int fcp_data_read(
 
 /* Write 1/2/4 data bytes */
 int fcp_data_write(snd_hwdep_t *hwdep, int offset, int size, int value) {
-  struct fcp_cmd cmd;
   struct {
     uint32_t offset;
     uint32_t size;
@@ -824,17 +775,13 @@ int fcp_data_write(snd_hwdep_t *hwdep, int offset, int size, int value) {
   req.size = htole32(size);
   req.value = htole32(value);
 
-  /* Set up command structure */
-  cmd.opcode = FCP_OPCODE_DATA_WRITE;
-  cmd.req = &req;
-  cmd.req_size = sizeof(uint32_t) * 2 + size;  /* offset + size + actual data */
-  cmd.resp = NULL;
-  cmd.resp_size = 0;
-
   log_debug("Writing data: offset=%d size=%d value=%d", offset, size, value);
 
   /* Send command */
-  int err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
+  int err = fcp_cmd(
+    hwdep,
+    FCP_OPCODE_DATA_WRITE,
+    &req, sizeof(uint32_t) * 2 + size, NULL, 0);
   if (err < 0) {
     log_error("Set data failed at offset %d: %s", offset, snd_strerror(err));
     return err;
@@ -844,7 +791,6 @@ int fcp_data_write(snd_hwdep_t *hwdep, int offset, int size, int value) {
 }
 
 int fcp_data_notify(snd_hwdep_t *hwdep, int event) {
-  struct fcp_cmd cmd;
   struct {
     uint32_t event;
   } __attribute__((packed)) req;
@@ -852,39 +798,28 @@ int fcp_data_notify(snd_hwdep_t *hwdep, int event) {
   /* Prepare request data */
   req.event = htole32(event);
 
-  /* Set up command structure */
-  cmd.opcode = FCP_OPCODE_DATA_NOTIFY;
-  cmd.req = &req;
-  cmd.req_size = sizeof(req);
-  cmd.resp = NULL;
-  cmd.resp_size = 0;
-
   /* Send command */
-  int err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
-  if (err < 0) {
-    log_error("Notify device failed: %s", snd_strerror(err));
-    return err;
-  }
-
-  return 0;
+  return fcp_cmd(
+    hwdep,
+    FCP_OPCODE_DATA_NOTIFY,
+    &req, sizeof(req),
+    NULL, 0
+  );
 }
 
 /* Read the device map */
 int fcp_devmap_read(snd_hwdep_t *hwdep, char **buf) {
 
   /* Get device map info */
-  struct fcp_cmd cmd;
   uint16_t info_resp[2] = {0};
 
-  /* Set up command structure */
-  cmd.opcode = FCP_OPCODE_DEVMAP_INFO;
-  cmd.req = NULL;
-  cmd.req_size = 0;
-  cmd.resp = &info_resp;
-  cmd.resp_size = sizeof(info_resp);
-
   /* Send command */
-  int err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
+  int err = fcp_cmd(
+    hwdep,
+    FCP_OPCODE_DEVMAP_INFO,
+    NULL, 0,
+    &info_resp, sizeof(info_resp)
+  );
   if (err < 0) {
     log_error("Get device map info failed: %s", snd_strerror(err));
     return err;
@@ -901,19 +836,20 @@ int fcp_devmap_read(snd_hwdep_t *hwdep, char **buf) {
 
   /* Read device map */
   char data[FCP_DEVMAP_BLOCK_SIZE] = {0};
-  cmd.opcode = FCP_OPCODE_DEVMAP_READ;
   uint32_t req_block_num;
-  cmd.req = &req_block_num;
-  cmd.req_size = sizeof(req_block_num);
-  cmd.resp = data;
 
   for (int offset = 0; offset < size; offset += FCP_DEVMAP_BLOCK_SIZE) {
     req_block_num = htole32(offset / FCP_DEVMAP_BLOCK_SIZE);
-    cmd.resp_size = FCP_DEVMAP_BLOCK_SIZE;
+    size_t resp_size = FCP_DEVMAP_BLOCK_SIZE;
     if (offset + FCP_DEVMAP_BLOCK_SIZE > size)
-      cmd.resp_size = size - offset;
+      resp_size = size - offset;
 
-    err = snd_hwdep_ioctl(hwdep, FCP_IOCTL_CMD, &cmd);
+    err = fcp_cmd(
+      hwdep,
+      FCP_OPCODE_DEVMAP_READ,
+      &req_block_num, sizeof(req_block_num),
+      data, resp_size
+    );
     if (err < 0) {
       log_error("Read device map failed: %s", snd_strerror(err));
       free(*buf);
@@ -921,7 +857,7 @@ int fcp_devmap_read(snd_hwdep_t *hwdep, char **buf) {
       return err;
     }
 
-    memcpy(*buf + offset, data, cmd.resp_size);
+    memcpy(*buf + offset, data, resp_size);
   }
 
   return size;
