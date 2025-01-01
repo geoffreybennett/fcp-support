@@ -10,17 +10,17 @@
 #include "alsa.h"
 
 // Find device with matching serial number
-static struct found_card* find_by_serial(const char *serial, bool quiet) {
+static struct sound_card *find_by_serial(const char *serial, bool quiet) {
   int count;
-  struct found_card **cards = enumerate_cards(&count, quiet);
+  struct sound_card **cards = enum_cards(&count, quiet);
   if (!cards)
     return NULL;
 
-  struct found_card *match = NULL;
+  struct sound_card *match = NULL;
   for (int i = 0; i < count; i++) {
     char *card_serial = get_device_serial(cards[i]->card_num);
+
     if (card_serial && strcmp(card_serial, serial) == 0) {
-      // Found match - move to separate variable
       match = cards[i];
       cards[i] = NULL;
       free(card_serial);
@@ -30,22 +30,25 @@ static struct found_card* find_by_serial(const char *serial, bool quiet) {
   }
 
   // Cleanup unmatched cards
-  for (int i = 0; i < count; i++) {
+  for (int i = 0; i < count; i++)
     if (cards[i])
-      free_found_card(cards[i]);
-  }
+      free_sound_card(cards[i]);
   free(cards);
 
   return match;
 }
 
-int wait_for_device(struct device_wait *wait, struct found_card **found) {
-  long deadline = time(NULL) + wait->timeout;
+int wait_for_device(
+  const char         *serial,  // Expected serial number
+  int                 timeout, // How long to wait in seconds
+  struct sound_card **card     // Output: sound card
+) {
+  long deadline = time(NULL) + timeout;
 
   while (time(NULL) < deadline) {
-    struct found_card *match = find_by_serial(wait->serial, true);
+    struct sound_card *match = find_by_serial(serial, true);
     if (match) {
-      *found = match;
+      *card = match;
       return 0;
     }
 
@@ -56,9 +59,9 @@ int wait_for_device(struct device_wait *wait, struct found_card **found) {
   }
 
   // Try one last time, but print error message if it fails
-  struct found_card *match = find_by_serial(wait->serial, false);
+  struct sound_card *match = find_by_serial(serial, false);
   if (match) {
-    *found = match;
+    *card = match;
     return 0;
   }
 

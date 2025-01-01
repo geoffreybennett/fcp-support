@@ -6,19 +6,26 @@
 #include <stdbool.h>
 #include <alsa/asoundlib.h>
 
-struct found_card {
+struct sound_card {
   int       card_num;
   int       usb_vid;
   int       usb_pid;
   char     *card_name;
+  char     *serial;
+  char     *product_name;
   char     *alsa_name;
   char     *socket_path;
+  int       socket_fd;
   uint32_t  firmware_version[4];
   uint32_t  esp_firmware_version[4];
 };
 
 // Returns array of found cards, caller must free
-struct found_card **enumerate_cards(int *count, bool quiet);
+struct sound_card **enum_cards(int *count, bool quiet);
+
+// Connect to the fcp server for the sound card
+int connect_to_server(struct sound_card *card);
+int wait_for_disconnect(struct sound_card *card);
 
 // Clean up a found_card struct
-void free_found_card(struct found_card *card);
+void free_sound_card(struct sound_card *card);
