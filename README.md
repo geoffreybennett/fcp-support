@@ -15,10 +15,10 @@ FCP support in Linux consists of several components that work together:
    - Communicates with the device via the kernel driver
    - Creates ALSA controls and transfers control changes to and from
      the device
-   - Allows `fcp-firmware` to update the device firmware, reset the
-     device configuration, and reboot the device
+   - Allows `fcp-tool` to update the device firmware, reset the device
+     configuration, and reboot the device
 
-3. **Firmware Update Tool** (this repo: `fcp-firmware`)
+3. **Firmware Update Tool** (this repo: `fcp-tool`)
    - CLI utility for updating device firmware
    - Uploads firmware to `fcp-server`
 
@@ -54,7 +54,7 @@ sudo dnf install make gcc alsa-lib-devel systemd-devel openssl-devel \
   zlib-devel json-c-devel pkgconfig
 ```
 
-3. Audio group membership is required to use the `fcp-firmware` tool:
+3. Audio group membership is required to use `fcp-tool`:
 
 ```bash
 sudo usermod -a -G audio $USER
@@ -72,7 +72,7 @@ sudo make install
 ```
 
 This will:
-- Build `fcp-server` and `fcp-firmware`
+- Build `fcp-server` and `fcp-tool`
 - Install binaries to `/usr/local/bin/`
 - Install systemd service file to `/usr/local/lib/systemd/system/`
 - Install udev rule to `/usr/local/lib/udev/rules.d/`
@@ -115,18 +115,18 @@ The installation process sets up:
 
 ### Firmware Management
 
-The `fcp-firmware` tool provides the following capabilities:
+`fcp-tool` provides the following capabilities:
 
 ```bash
 # View all commands
-fcp-firmware
+fcp-tool
 
 # Update firmware (takes 1-2 minutes)
-fcp-firmware update <firmware.bin>
+fcp-tool update <firmware.bin>
 
 # Maintenance commands
-fcp-firmware erase-config   # Reset device configuration to firmware defaults
-fcp-firmware reboot         # Reboot device
+fcp-tool erase-config   # Reset device configuration to firmware defaults
+fcp-tool reboot         # Reboot device
 ```
 
 ## Support

@@ -1,5 +1,5 @@
 *.o
 /.deps
-/fcp-firmware
 /fcp-server
+/fcp-tool
 /systemd/fcp-server@.service

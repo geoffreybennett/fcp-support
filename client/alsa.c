@@ -70,7 +70,7 @@ static char *get_socket_path(snd_ctl_t *ctl, int card_num, bool quiet) {
       fprintf(
         stderr,
         "Firmware Version control for card %d is not a user control "
-          "(use scarlett2, not fcp-firmware for managing this card)\n",
+          "(use scarlett2, not fcp-tool for managing this card)\n",
         card_num
       );
     return NULL;

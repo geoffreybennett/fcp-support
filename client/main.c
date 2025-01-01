@@ -34,7 +34,7 @@ struct command_context {
 };
 
 static void print_usage(const char *prog) {
-  fprintf(stderr, "fcp-firmware %s\n", VERSION);
+  fprintf(stderr, "fcp-tool %s\n", VERSION);
   fprintf(stderr, "\n");
   fprintf(stderr, "Usage: %s <command> [args...]\n", prog);
   fprintf(stderr, "\n");

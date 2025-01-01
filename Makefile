@@ -59,7 +59,7 @@ SHARED_DEPDIRS := $(addprefix $(DEPDIR)/,$(dir $(SHARED_SRCS)))
 DEPDIRS := $(sort $(CLIENT_DEPDIRS) $(SERVER_DEPDIRS) $(SHARED_DEPDIRS))
 
 # Define targets
-TARGETS := fcp-firmware fcp-server systemd/fcp-server@.service
+TARGETS := fcp-tool fcp-server systemd/fcp-server@.service
 
 all: $(TARGETS)
 
@@ -87,7 +87,7 @@ $(SHARED_DEPS):
 -include $(wildcard $(SERVER_DEPS))
 -include $(wildcard $(SHARED_DEPS))
 
-fcp-firmware: $(CLIENT_OBJS) $(SHARED_OBJS)
+fcp-tool: $(CLIENT_OBJS) $(SHARED_OBJS)
 	cc -o $@ $(CLIENT_OBJS) $(SHARED_OBJS) ${LDFLAGS}
 
 fcp-server: $(SERVER_OBJS)
@@ -106,7 +106,7 @@ install: all install-bin install-service install-rules install-data
 
 install-bin:
 	install -d $(BINDIR)
-	install -m 755 fcp-firmware $(BINDIR)
+	install -m 755 fcp-tool $(BINDIR)
 	install -m 755 fcp-server $(BINDIR)
 
 install-service: systemd/fcp-server@.service
@@ -122,7 +122,7 @@ install-data:
 	install -m 644 data/fcp-alsa-map-*.json $(DATADIR)/
 
 uninstall:
-	rm -f $(BINDIR)/fcp-firmware
+	rm -f $(BINDIR)/fcp-tool
 	rm -f $(BINDIR)/fcp-server
 	rm -f $(SYSTEMD_DIR)/fcp-server@.service
 	rm -f $(UDEV_DIR)/99-fcp.rules
@@ -132,7 +132,7 @@ help:
 	@echo "fcp-support"
 	@echo
 	@echo "This Makefile knows about:"
-	@echo "  make           - build fcp-firmware and fcp-server"
+	@echo "  make           - build fcp-server and fcp-tool"
 	@echo "  make install   - install everything (binaries, service, rules, data)"
 	@echo "  make uninstall - uninstall everything"
 	@echo "  make clean     - remove build files"
