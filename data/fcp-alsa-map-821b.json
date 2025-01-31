@@ -117,8 +117,12 @@
       "name": "Speaker Switching Alt Playback Switch",
       "type": "bool"
     },
-    "enableMSD": {
-      "name": "MSD Mode Switch",
+    "enableStandalone": {
+      "name": "Standalone Switch",
+      "type": "bool"
+    },
+    "enablePhantomPersist": {
+      "name": "Phantom Power Persistence Capture Switch",
       "type": "bool"
     }
   },

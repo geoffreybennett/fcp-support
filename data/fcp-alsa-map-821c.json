@@ -116,6 +116,14 @@
     "altSwitch": {
       "name": "Speaker Switching Alt Playback Switch",
       "type": "bool"
+    },
+    "enableStandalone": {
+      "name": "Standalone Switch",
+      "type": "bool"
+    },
+    "enablePhantomPersist": {
+      "name": "Phantom Power Persistence Capture Switch",
+      "type": "bool"
     }
   },
   "sources": [
