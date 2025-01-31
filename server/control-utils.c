@@ -154,7 +154,6 @@ int write_data_control(struct fcp_device *device, struct control_props *props, i
       return -1;
     }
     value = props->enum_values[value];
-    printf("Setting %s to %s (%d)\n", props->name, props->enum_names[value], value);
   }
 
   if (props->data_type == DATA_TYPE_UINT8) {
