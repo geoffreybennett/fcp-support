@@ -202,8 +202,21 @@ static int create_global_control(
   struct json_object *control_config,
   struct json_object *enums
 ) {
+  struct json_object *fcp_notify, *fcp_notify_enums;
   struct json_object *name, *type, *components, *member;
   const char *member_type;
+
+  if (!json_object_object_get_ex(
+        enums, "eDEV_FCP_USER_MESSAGE_TYPE", &fcp_notify
+      ) ||
+      !json_object_object_get_ex(
+        fcp_notify, "enumerators", &fcp_notify_enums
+      )) {
+    log_error(
+      "Cannot find eDEV_FCP_USER_MESSAGE_TYPE/enumerators in device map"
+    );
+    return -1;
+  }
 
   if (!json_object_object_get_ex(control_config, "name", &name) ||
       !json_object_object_get_ex(control_config, "type", &type)) {
@@ -314,6 +327,26 @@ static int create_global_control(
   props.notify_device = json_object_get_int(
     json_object_object_get(member, "notify-device")
   );
+
+  struct json_object *save;
+  if (json_object_object_get_ex(control_config, "save", &save) &&
+      json_object_get_boolean(save)) {
+    if (props.notify_device) {
+      log_error("Control %s has both save and notify-device", member_path);
+    } else {
+      struct json_object *flash_ctrl;
+
+      if (!json_object_object_get_ex(
+           fcp_notify_enums, "eMSG_FLASH_CTRL", &flash_ctrl
+         )) {
+        log_error(
+          "Cannot find eMSG_FLASH_CTRL in eDEV_FCP_USER_MESSAGE_TYPE"
+        );
+      } else {
+        props.notify_device = json_object_get_int(flash_ctrl);
+      }
+    }
+  }
 
   if (!strcmp(type_str, "enum")) {
 

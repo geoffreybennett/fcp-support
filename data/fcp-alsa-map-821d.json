@@ -140,15 +140,18 @@
         { "name": "S/PDIF RCA",     "value": 0 },
         { "name": "S/PDIF Optical", "value": 6 },
         { "name": "Dual ADAT",      "value": 1 }
-      ]
+      ],
+      "save": true
     },
     "enableStandalone": {
       "name": "Standalone Switch",
-      "type": "bool"
+      "type": "bool",
+      "save": true
     },
     "enablePhantomPersist": {
       "name": "Phantom Power Persistence Capture Switch",
-      "type": "bool"
+      "type": "bool",
+      "save": true
     }
   },
   "sources": [

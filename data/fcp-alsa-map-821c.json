@@ -119,11 +119,13 @@
     },
     "enableStandalone": {
       "name": "Standalone Switch",
-      "type": "bool"
+      "type": "bool",
+      "save": true
     },
     "enablePhantomPersist": {
       "name": "Phantom Power Persistence Capture Switch",
-      "type": "bool"
+      "type": "bool",
+      "save": true
     }
   },
   "sources": [
