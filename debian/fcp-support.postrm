@@ -1,0 +1,13 @@
+#!/bin/sh
+set -e
+
+#DEBHELPER#
+
+case "$1" in
+    remove|purge)
+        # Reload systemd after removing service files
+        if [ -x /bin/systemctl ]; then
+            /bin/systemctl daemon-reload || true
+        fi
+        ;;
+esac
