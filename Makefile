@@ -11,7 +11,7 @@ VERSION := $(shell \
 
 # Installation paths
 ifeq ($(PREFIX),)
-  PREFIX := /usr/local
+  PREFIX := /usr
 endif
 
 BINDIR := $(DESTDIR)$(PREFIX)/bin
