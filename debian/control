@@ -22,7 +22,8 @@ Depends: ${shlibs:Depends},
          libssl3,
          zlib1g,
          libjson-c5,
-         libsystemd0
+         libsystemd0,
+         scarlett4-firmware
 Description: Support package for Focusrite Control Protocol
  This package provides support for Focusrite Control Protocol (FCP)
  devices, including tools for device management and configuration.
