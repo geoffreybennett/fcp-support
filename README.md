@@ -140,6 +140,7 @@ Please include:
 
 - Device model
 - Linux distribution and version
+- Output of `dmesg` and `lsusb`
 - Output as per troubleshooting steps above
 
 ## Contact
