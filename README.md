@@ -122,7 +122,10 @@ The installation process sets up:
 fcp-tool
 
 # Update firmware (takes 1-2 minutes)
-fcp-tool update <firmware.bin>
+fcp-tool update
+
+# Update firmware to a specific version
+fcp-tool update -f /path/to/firmware.bin
 
 # Maintenance commands
 fcp-tool erase-config   # Reset device configuration to firmware defaults
