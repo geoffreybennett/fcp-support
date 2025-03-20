@@ -660,6 +660,43 @@ int fcp_flash_write(
   return err;
 }
 
+/* Read data from flash */
+int fcp_flash_read(
+  snd_hwdep_t *hwdep,
+  int          segment_num,
+  int          offset,
+  int          size,
+  void        *data
+) {
+  struct {
+    uint32_t segment_num;
+    uint32_t offset;
+    uint32_t size;
+  } __attribute__((packed)) req;
+
+  if (segment_num < 0 || segment_num > 16) {
+    log_error("Invalid segment number: %d", segment_num);
+    return -EINVAL;
+  }
+
+  /* Prepare request data */
+  req.segment_num = htole32(segment_num);
+  req.offset = htole32(offset);
+  req.size = htole32(size);
+
+  int err = fcp_cmd(
+    hwdep,
+    FCP_OPCODE_FLASH_READ,
+    &req, sizeof(req),
+    data, size
+  );
+
+  if (err < 0)
+    log_error("Flash read failed: %s", snd_strerror(err));
+
+  return err;
+}
+
 /* Read the sync status */
 int fcp_sync_read(snd_hwdep_t *hwdep) {
   uint32_t buf = 0;

@@ -38,6 +38,7 @@ int fcp_flash_segment_info(snd_hwdep_t *hwdep, int segment_num, int *size, uint3
 int fcp_flash_erase(snd_hwdep_t *hwdep, int segment_num);
 int fcp_flash_erase_progress(snd_hwdep_t *hwdep, int segment_num);
 int fcp_flash_write(snd_hwdep_t *hwdep, int segment_num, int offset, int size, const void *data);
+int fcp_flash_read(snd_hwdep_t *hwdep, int segment_num, int offset, int size, void *data);
 int fcp_sync_read(snd_hwdep_t *hwdep);
 int fcp_esp_dfu_start(snd_hwdep_t *hwdep, uint32_t length, const uint8_t *md5_hash);
 int fcp_esp_dfu_write(snd_hwdep_t *hwdep, const void *data, size_t count);
