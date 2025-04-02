@@ -1,0 +1,19 @@
+#!/bin/sh
+set -e
+
+#DEBHELPER#
+
+case "$1" in
+    configure)
+        # Reload systemd to pick up the new service template
+        if [ -x /bin/systemctl ]; then
+            /bin/systemctl daemon-reload || true
+        fi
+
+        # Reload udev rules
+        if command -v udevadm >/dev/null 2>&1; then
+            udevadm control --reload-rules || true
+            udevadm trigger --subsystem-match=usb || true
+        fi
+        ;;
+esac

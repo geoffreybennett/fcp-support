@@ -1,0 +1,36 @@
+Source: fcp-support
+Section: utils
+Priority: optional
+Maintainer: Philip S. Hempel <pshempel@linuxsrc.com>
+Build-Depends: debhelper-compat (= 13),
+               pkgconf,
+               libasound2-dev,
+               libsystemd-dev,
+               libssl-dev,
+               zlib1g-dev,
+               libjson-c-dev
+Standards-Version: 4.6.0
+Homepage: https://github.com/geoffreybennett/fcp-support
+Rules-Requires-Root: no
+
+Package: fcp-support
+Architecture: any
+Depends: ${shlibs:Depends},
+         ${misc:Depends},
+         systemd,
+         libasound2,
+         libssl3,
+         zlib1g,
+         libjson-c5,
+         libsystemd0,
+         scarlett4-firmware
+Description: Support package for Focusrite Control Protocol
+ This package provides support for Focusrite Control Protocol (FCP)
+ devices, including tools for device management and configuration.
+ It includes both fcp-tool for user interaction and fcp-server for
+ device management.
+ .
+ The package automatically sets up udev rules and systemd services
+ for automatic device detection and management. When a compatible
+ device is connected, a systemd service instance (fcp-server@.service)
+ is automatically started for that specific device.
