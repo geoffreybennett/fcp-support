@@ -31,7 +31,7 @@
 #define FCP_DRIVER_URL  GITHUB_URL "/linux-fcp"
 #define FCP_SUPPORT_URL GITHUB_URL "/fcp-support"
 #define ASG_URL         GITHUB_URL "/alsa-scarlett-gui"
-#define FIRMWARE_URL    GITHUB_URL "/fcp-firmware"
+#define FIRMWARE_URL    GITHUB_URL "/scarlett4-firmware"
 
 // List of found cards
 int card_count = 0;
