@@ -138,10 +138,10 @@ static int get_component_info(
 }
 
 static int create_bool_mixer_outputs_controls(
-  const char          *control_name_template,
-  struct fcp_device   *device,
-  const char          *member_path,
-  struct json_object  *control_config
+  const char         *control_name_template,
+  struct fcp_device  *device,
+  const char         *member_path,
+  struct json_object *control_config
 ) {
   struct json_object *member;
   const char *member_type;
