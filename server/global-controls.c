@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <alsa/asoundlib.h>
+#include <alsa/sound/tlv.h>
 #include <json-c/json.h>
 
 #include "global-controls.h"
@@ -468,6 +469,9 @@ static int create_global_control(
     } else if (props.data_type == DATA_TYPE_UINT32) {
       props.min = 0;
       props.max = 2147483647; /* not supporting unsigned int32 yet */
+    } else if (props.data_type == DATA_TYPE_INT16) {
+      props.min = -32768;
+      props.max = 32767;
     } else {
       log_error("Invalid data type %d for global control: %s", props.data_type, member_path);
       return -1;
@@ -479,6 +483,19 @@ static int create_global_control(
     if (json_object_object_get_ex(control_config, "max", &max)) {
       props.max = json_object_get_int(max);
     }
+
+    struct json_object *db_min, *db_max;
+    if (json_object_object_get_ex(control_config, "db-min", &db_min) &&
+        json_object_object_get_ex(control_config, "db-max", &db_max)) {
+
+      unsigned int *tlv = calloc(4, sizeof(unsigned int));
+      tlv[0] = SNDRV_CTL_TLVT_DB_MINMAX;
+      tlv[1] = 2 * sizeof(unsigned int);
+      tlv[2] = json_object_get_int(db_min) * 100;
+      tlv[3] = json_object_get_int(db_max) * 100;
+      props.tlv = tlv;
+    }
+
     if (json_object_object_get_ex(control_config, "interface", &interface)) {
       const char *interface_str = json_object_get_string(interface);
       if (!strcmp(interface_str, "mixer")) {
