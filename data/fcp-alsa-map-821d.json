@@ -106,6 +106,14 @@
       "max-from": "kMAX_PREAMP_CHANNELS",
       "label-format": "Input %d"
     },
+    "masterVolume": {
+      "name": "Master Playback Volume",
+      "type": "int",
+      "min": -127,
+      "max": 0,
+      "db-min": -127,
+      "db-max": 0
+    },
     "muteSwitch": {
       "name": "Mute Playback Switch",
       "type": "bool"
