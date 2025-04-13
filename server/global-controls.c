@@ -519,15 +519,6 @@ int init_global_controls(struct fcp_device *device) {
     return -1;
   }
 
-  /* Get APP_SPACE members */
-  struct json_object *structs, *app_space, *members;
-  if (!json_object_object_get_ex(device->devmap, "structs", &structs) ||
-      !json_object_object_get_ex(structs, "APP_SPACE", &app_space) ||
-      !json_object_object_get_ex(app_space, "members", &members)) {
-    log_error("Cannot find structs/APP_SPACE/members in device map");
-    return -1;
-  }
-
   /* Get enums */
   struct json_object *enums;
   if (!json_object_object_get_ex(device->devmap, "enums", &enums)) {
