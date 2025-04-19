@@ -16,45 +16,43 @@
 #include "fcp-devmap.h"
 #include "log.h"
 
+static json_object *try_load_devmap_json(const char *dir, const char *filename) {
+  if (!dir)
+    return json_object_from_file(filename);
+
+  char *path;
+  json_object *obj = NULL;
+  if (asprintf(&path, "%s/%s", dir, filename) >= 0) {
+    obj = json_object_from_file(path);
+    free(path);
+  }
+  return obj;
+}
+
 static int fcp_devmap_read_from_file(struct fcp_device *device) {
-  char *fn;
-  if (asprintf(&fn, "fcp-devmap-%04x.json", device->usb_pid) < 0) {
+  char *filename;
+  if (asprintf(&filename, "fcp-devmap-%04x.json", device->usb_pid) < 0) {
     log_error("Failed to allocate memory for filename");
     exit(1);
   }
 
-  FILE *f = fopen(fn, "r");
-  if (!f)
-    return -ENOENT;
+  // Try locations in order: env var, current dir, system dir
+  const char *search_dirs[] = {
+    getenv("FCP_SERVER_DATA_DIR"),
+    NULL,
+    DATADIR
+  };
 
-  fseek(f, 0, SEEK_END);
-  size_t json_size = ftell(f);
-  fseek(f, 0, SEEK_SET);
-
-  char *json_buf = malloc(json_size + 1);
-  if (!json_buf) {
-    fclose(f);
-    return -ENOMEM;
+  for (size_t i = 0; i < sizeof(search_dirs) / sizeof(search_dirs[0]); i++) {
+    device->devmap = try_load_devmap_json(search_dirs[i], filename);
+    if (device->devmap) {
+      free(filename);
+      return 0;
+    }
   }
 
-  if (fread(json_buf, 1, json_size, f) != json_size) {
-    free(json_buf);
-    fclose(f);
-    return -EINVAL;
-  }
-  fclose(f);
-
-  json_buf[json_size] = '\0';
-
-  device->devmap = json_tokener_parse(json_buf);
-  if (!device->devmap) {
-    free(json_buf);
-    return -EINVAL;
-  }
-
-  free(json_buf);
-
-  return 0;
+  free(filename);
+  return -ENOENT;
 }
 
 static int fcp_devmap_read_from_device(struct fcp_device *device) {
