@@ -9,7 +9,8 @@ driver.
 FCP support in Linux consists of several components that work together:
 
 1. **Kernel Driver** ([linux-fcp](https://github.com/geoffreybennett/linux-fcp))
-   - Allows `fcp-server` to communicate with the device
+   - Allows `fcp-server` to communicate with the device — install this
+     first (not necessary if your kernel version is 6.14 or later)
 
 2. **User-space Server** (this repo: `fcp-server`)
    - Communicates with the device via the kernel driver
@@ -20,7 +21,7 @@ FCP support in Linux consists of several components that work together:
 
 3. **Firmware Update Tool** (this repo: `fcp-tool`)
    - CLI utility for updating device firmware
-   - Uploads firmware to `fcp-server`
+   - Uploads firmware to the device via `fcp-server`
 
 4. **GUI Application** ([alsa-scarlett-gui](https://github.com/geoffreybennett/alsa-scarlett-gui))
    - Provides a graphical interface for device control
@@ -69,6 +70,8 @@ Log out and back in for the group membership change to take effect.
 ```bash
 make
 sudo make install
+sudo systemctl daemon-reload
+sudo udevadm control --reload-rules
 ```
 
 This will:
