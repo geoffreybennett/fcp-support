@@ -2,10 +2,107 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "control-utils.h"
 #include "fcp.h"
 #include "log.h"
+
+int find_member_by_path(
+  struct fcp_device   *device,
+  const char          *path,
+  struct json_object **found_member,
+  const char         **member_type,
+  int                 *total_offset,
+  bool                 allow_missing
+) {
+  return find_member_by_path_with_notify(
+    device, path, found_member, member_type, total_offset,
+    NULL, NULL, allow_missing
+  );
+}
+
+int find_member_by_path_with_notify(
+  struct fcp_device   *device,
+  const char          *path,
+  struct json_object **found_member,
+  const char         **member_type,
+  int                 *total_offset,
+  int                 *notify_device,
+  int                 *notify_client,
+  bool                 allow_missing
+) {
+  struct json_object *structs, *current_struct, *current_members;
+  char *path_copy = strdup(path);
+  char *token, *saveptr;
+  const char *current_type = "APP_SPACE";
+  *total_offset = 0;
+
+  /* Track last non-null notify values */
+  int last_notify_device = 0;
+  int last_notify_client = 0;
+
+  if (!json_object_object_get_ex(device->devmap, "structs", &structs)) {
+    log_error("Cannot find structs in device map");
+    free(path_copy);
+    return -1;
+  }
+
+  /* Start with APP_SPACE */
+  if (!json_object_object_get_ex(structs, "APP_SPACE", &current_struct) ||
+      !json_object_object_get_ex(current_struct, "members", &current_members)) {
+    log_error("Cannot find APP_SPACE members");
+    free(path_copy);
+    return -1;
+  }
+
+  struct json_object *member = NULL;
+
+  /* Walk the dot-separated path */
+  token = strtok_r(path_copy, ".", &saveptr);
+  while (token != NULL) {
+    if (!json_object_object_get_ex(current_members, token, &member)) {
+      if (!allow_missing)
+        log_error("Cannot find member %s", token);
+      free(path_copy);
+      return -1;
+    }
+
+    /* Add this member's offset */
+    *total_offset += json_object_get_int(json_object_object_get(member, "offset"));
+
+    /* Track notify values - use this member's value if non-null */
+    struct json_object *nd = json_object_object_get(member, "notify-device");
+    struct json_object *nc = json_object_object_get(member, "notify-client");
+    if (nd && !json_object_is_type(nd, json_type_null))
+      last_notify_device = json_object_get_int(nd);
+    if (nc && !json_object_is_type(nc, json_type_null))
+      last_notify_client = json_object_get_int(nc);
+
+    /* Get the member's type */
+    current_type = json_object_get_string(json_object_object_get(member, "type"));
+
+    /* More path components? Look up next struct */
+    token = strtok_r(NULL, ".", &saveptr);
+    if (token != NULL) {
+      if (!json_object_object_get_ex(structs, current_type, &current_struct) ||
+          !json_object_object_get_ex(current_struct, "members", &current_members)) {
+        log_error("Cannot find struct '%s' members", current_type);
+        free(path_copy);
+        return -1;
+      }
+    }
+  }
+
+  free(path_copy);
+  *found_member = member;
+  *member_type = current_type;
+  if (notify_device)
+    *notify_device = last_notify_device;
+  if (notify_client)
+    *notify_client = last_notify_client;
+  return 0;
+}
 
 int devmap_type_to_data_type(const char *type) {
   if (!strcmp(type, "bool"))
@@ -18,6 +115,8 @@ int devmap_type_to_data_type(const char *type) {
   if (!strcmp(type, "uint32"))
     return DATA_TYPE_UINT32;
 
+  if (!strcmp(type, "int8"))
+    return DATA_TYPE_INT8;
   if (!strcmp(type, "int16"))
     return DATA_TYPE_INT16;
 
@@ -53,7 +152,8 @@ static int read_single_data_control(
 ) {
   int width;
 
-  if (data_type == DATA_TYPE_UINT8) {
+  if (data_type == DATA_TYPE_UINT8 ||
+      data_type == DATA_TYPE_INT8) {
     width = 1;
   } else if (data_type == DATA_TYPE_UINT16 ||
              data_type == DATA_TYPE_INT16) {
@@ -156,7 +256,8 @@ int write_data_control(struct fcp_device *device, struct control_props *props, i
     value = props->enum_values[value];
   }
 
-  if (props->data_type == DATA_TYPE_UINT8) {
+  if (props->data_type == DATA_TYPE_UINT8 ||
+      props->data_type == DATA_TYPE_INT8) {
     width = 1;
   } else if (props->data_type == DATA_TYPE_UINT16 ||
              props->data_type == DATA_TYPE_INT16) {
@@ -184,7 +285,8 @@ int read_bitmap_data_control(
   }
 
   int width;
-  if (props->data_type == DATA_TYPE_UINT8) {
+  if (props->data_type == DATA_TYPE_UINT8 ||
+      props->data_type == DATA_TYPE_INT8) {
     width = 1;
   } else if (props->data_type == DATA_TYPE_UINT16 ||
              props->data_type == DATA_TYPE_INT16) {
@@ -224,7 +326,8 @@ int write_bitmap_data_control(
   }
 
   int width;
-  if (props->data_type == DATA_TYPE_UINT8) {
+  if (props->data_type == DATA_TYPE_UINT8 ||
+      props->data_type == DATA_TYPE_INT8) {
     width = 1;
   } else if (props->data_type == DATA_TYPE_UINT16 ||
              props->data_type == DATA_TYPE_INT16) {

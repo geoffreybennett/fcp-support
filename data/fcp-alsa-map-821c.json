@@ -1,4 +1,17 @@
 {
+  "output-group-sources": [
+    "PCM 1", "PCM 2", "PCM 3", "PCM 4", "PCM 5", "PCM 6",
+    "PCM 7", "PCM 8", "PCM 9", "PCM 10", "PCM 11", "PCM 12",
+    "PCM 13", "PCM 14", "PCM 15", "PCM 16", "PCM 17", "PCM 18",
+    "Analogue 1", "Analogue 2", "Analogue 3", "Analogue 4",
+    "Analogue 5", "Analogue 6", "Analogue 7", "Analogue 8",
+    null, null,
+    "S/PDIF 1", "S/PDIF 2",
+    "ADAT 1", "ADAT 2", "ADAT 3", "ADAT 4",
+    "ADAT 5", "ADAT 6", "ADAT 7", "ADAT 8",
+    "Mix A", "Mix B", "Mix C", "Mix D", "Mix E", "Mix F",
+    "Mix G", "Mix H", "Mix I", "Mix J", "Mix K", "Mix L"
+  ],
   "input-controls": {
     "air": {
       "name": "Line In %d Air Capture Enum",
@@ -64,9 +77,43 @@
       "max": 0,
       "db-min": -127,
       "db-max": 0
+    },
+    "outputGroupMain.map": {
+      "name": "Main Group Output %d Playback Switch",
+      "type": "bool-bitmap"
+    },
+    "outputGroupMain.sources": {
+      "name": "Main Group Output %d Source Playback Enum",
+      "type": "enum",
+      "values-from": "output-group-sources"
+    },
+    "outputGroupMain.trims": {
+      "name": "Main Group Output %d Trim Playback Volume",
+      "type": "int",
+      "min": -128,
+      "max": 0,
+      "db-min": -128,
+      "db-max": 0
+    },
+    "outputGroupAlt.map": {
+      "name": "Alt Group Output %d Playback Switch",
+      "type": "bool-bitmap"
+    },
+    "outputGroupAlt.sources": {
+      "name": "Alt Group Output %d Source Playback Enum",
+      "type": "enum",
+      "values-from": "output-group-sources"
+    },
+    "outputGroupAlt.trims": {
+      "name": "Alt Group Output %d Trim Playback Volume",
+      "type": "int",
+      "min": -128,
+      "max": 0,
+      "db-min": -128,
+      "db-max": 0
     }
   },
-  "output-link": [ 0, 1, 2, 3, 4, 5, 6, 7 ],
+  "output-link": [ ],
   "global-controls": {
     "firmware-version": {
       "name": "Firmware Version",
@@ -120,10 +167,6 @@
     },
     "dimSwitch": {
       "name": "Dim Playback Switch",
-      "type": "bool"
-    },
-    "altMonitorTalkbackEnable": {
-      "name": "Speaker Switching Playback Switch",
       "type": "bool"
     },
     "altSwitch": {
@@ -285,30 +328,6 @@
     {
       "device_name": "USB 18",
       "alsa_name": "PCM 18"
-    },
-    {
-      "device_name": "USB 19",
-      "alsa_name": "PCM 19"
-    },
-    {
-      "device_name": "USB 20",
-      "alsa_name": "PCM 20"
-    },
-    {
-      "device_name": "USB 21",
-      "alsa_name": "PCM 21"
-    },
-    {
-      "device_name": "USB 22",
-      "alsa_name": "PCM 22"
-    },
-    {
-      "device_name": "USB 23",
-      "alsa_name": "PCM 23"
-    },
-    {
-      "device_name": "USB 24",
-      "alsa_name": "PCM 24"
     },
     {
       "device_name": "Mixer 1",
