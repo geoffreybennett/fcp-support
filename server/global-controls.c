@@ -15,70 +15,6 @@
 #include "device-ops.h"
 #include "log.h"
 
-static int find_member_by_path(
-  struct fcp_device   *device,
-  const char          *path,
-  struct json_object **found_member,
-  const char         **member_type,
-  int                 *total_offset,
-  bool                 allow_missing
-) {
-  struct json_object *structs, *current_struct, *current_members;
-  char *path_copy = strdup(path);
-  char *token, *saveptr;
-  const char *current_type = "APP_SPACE";
-  *total_offset = 0;
-
-  if (!json_object_object_get_ex(device->devmap, "structs", &structs)) {
-    log_error("Cannot find structs in device map");
-    free(path_copy);
-    return -1;
-  }
-
-  /* Start with APP_SPACE */
-  if (!json_object_object_get_ex(structs, "APP_SPACE", &current_struct) ||
-      !json_object_object_get_ex(current_struct, "members", &current_members)) {
-    log_error("Cannot find APP_SPACE members");
-    free(path_copy);
-    return -1;
-  }
-
-  struct json_object *member = NULL;
-
-  /* Walk the dot-separated path */
-  token = strtok_r(path_copy, ".", &saveptr);
-  while (token != NULL) {
-    if (!json_object_object_get_ex(current_members, token, &member)) {
-      if (!allow_missing)
-        log_error("Cannot find member %s", token);
-      free(path_copy);
-      return -1;
-    }
-
-    /* Add this member's offset */
-    *total_offset += json_object_get_int(json_object_object_get(member, "offset"));
-
-    /* Get the member's type */
-    current_type = json_object_get_string(json_object_object_get(member, "type"));
-
-    /* More path components? Look up next struct */
-    token = strtok_r(NULL, ".", &saveptr);
-    if (token != NULL) {
-      if (!json_object_object_get_ex(structs, current_type, &current_struct) ||
-          !json_object_object_get_ex(current_struct, "members", &current_members)) {
-        log_error("Cannot find struct '%s' members", current_type);
-        free(path_copy);
-        return -1;
-      }
-    }
-  }
-
-  free(path_copy);
-  *found_member = member;
-  *member_type = current_type;
-  return 0;
-}
-
 static int parse_component_path(
   const char  *component_spec,
   char       **path,
@@ -194,7 +130,6 @@ static int create_bool_mixer_outputs_controls(
 
   return 0;
 }
-
 
 /* Create a global control */
 static int create_global_control(
@@ -463,6 +398,9 @@ static int create_global_control(
     if (props.data_type == DATA_TYPE_UINT8) {
       props.min = 0;
       props.max = 255;
+    } else if (props.data_type == DATA_TYPE_INT8) {
+      props.min = -128;
+      props.max = 127;
     } else if (props.data_type == DATA_TYPE_UINT16) {
       props.min = 0;
       props.max = 65535;

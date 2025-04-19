@@ -16,9 +16,10 @@
 
 // bit 0 = signed
 #define DATA_TYPE_UINT8  0x02
+#define DATA_TYPE_INT8   0x03
 #define DATA_TYPE_UINT16 0x04
+#define DATA_TYPE_INT16  0x05
 #define DATA_TYPE_UINT32 0x08
-#define DATA_TYPE_INT16  0x03
 
 struct control_manager {
   struct control_props *controls;

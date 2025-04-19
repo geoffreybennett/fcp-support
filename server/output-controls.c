@@ -266,6 +266,227 @@ static int create_output_controls(
   return 0;
 }
 
+/* Build source enum list from output-group-sources in ALSA map */
+static int build_source_enum(
+  struct fcp_device  *device,
+  char             ***enum_names,
+  int               **enum_values,
+  int                *enum_count
+) {
+  struct json_object *sources_array;
+
+  if (!json_object_object_get_ex(device->fam, "output-group-sources", &sources_array)) {
+    log_error("Cannot find output-group-sources in ALSA map");
+    return -1;
+  }
+
+  int num_sources = json_object_array_length(sources_array);
+
+  /* Count valid (non-null, non-empty) entries */
+  int valid_count = 0;
+  for (int i = 0; i < num_sources; i++) {
+    struct json_object *entry = json_object_array_get_idx(sources_array, i);
+    if (entry && json_object_get_type(entry) == json_type_string) {
+      const char *name = json_object_get_string(entry);
+      if (name && name[0] != '\0')
+        valid_count++;
+    }
+  }
+
+  /* Allocate arrays for valid entries only */
+  *enum_count = valid_count;
+  *enum_names = calloc(valid_count, sizeof(char *));
+  *enum_values = calloc(valid_count, sizeof(int));
+
+  if (!*enum_names || !*enum_values) {
+    log_error("Cannot allocate memory for source enum");
+    return -1;
+  }
+
+  /* Populate from the array, skipping null/empty entries */
+  int enum_idx = 0;
+  for (int i = 0; i < num_sources; i++) {
+    struct json_object *entry = json_object_array_get_idx(sources_array, i);
+    if (entry && json_object_get_type(entry) == json_type_string) {
+      const char *name = json_object_get_string(entry);
+      if (name && name[0] != '\0') {
+        (*enum_names)[enum_idx] = strdup(name);
+        (*enum_values)[enum_idx] = i;
+        enum_idx++;
+      }
+    }
+  }
+
+  return 0;
+}
+
+static void free_source_enum(char **enum_names, int *enum_values, int enum_count) {
+  if (enum_names) {
+    for (int i = 0; i < enum_count; i++)
+      free(enum_names[i]);
+    free(enum_names);
+  }
+  free(enum_values);
+}
+
+/* Create output group controls (map, sources, trims) */
+static int create_output_group_controls(
+  struct fcp_device  *device,
+  struct json_object *output_controls,
+  struct json_object *enums
+) {
+  char **source_enum_names = NULL;
+  int *source_enum_values = NULL;
+  int source_enum_count = 0;
+  int err;
+
+  /* Get output count from enums */
+  struct json_object *max_sizes, *enumerators, *output_count_obj;
+  if (!json_object_object_get_ex(enums, "maximum_array_sizes", &max_sizes) ||
+      !json_object_object_get_ex(max_sizes, "enumerators", &enumerators) ||
+      !json_object_object_get_ex(enumerators, "kMAX_NUMBER_OUTPUTS", &output_count_obj)) {
+    log_debug("No kMAX_NUMBER_OUTPUTS - skipping output group controls");
+    return 0;
+  }
+  int output_count = json_object_get_int(output_count_obj);
+
+  /* Iterate over output-controls looking for outputGroup entries */
+  json_object_object_foreach(output_controls, control_path, control_config) {
+    /* Check if this is an output group control (starts with "outputGroup") */
+    if (strncmp(control_path, "outputGroup", 11) != 0)
+      continue;
+
+    struct json_object *name_obj, *type_obj;
+    if (!json_object_object_get_ex(control_config, "name", &name_obj) ||
+        !json_object_object_get_ex(control_config, "type", &type_obj)) {
+      log_error("Missing name/type in output control %s", control_path);
+      continue;
+    }
+
+    const char *name_template = json_object_get_string(name_obj);
+    const char *type_str = json_object_get_string(type_obj);
+
+    /* Find the member using dot notation */
+    struct json_object *member;
+    const char *member_type;
+    int offset;
+    int notify_device, notify_client;
+
+    err = find_member_by_path_with_notify(
+      device, control_path, &member, &member_type, &offset,
+      &notify_device, &notify_client, true
+    );
+    if (err < 0) {
+      log_debug("Output group member %s not found, skipping", control_path);
+      continue;
+    }
+
+    /* Create controls for each output */
+    for (int i = 0; i < output_count; i++) {
+      char *name;
+      if (asprintf(&name, name_template, i + 1) < 0) {
+        log_error("Cannot allocate memory for control name");
+        return -1;
+      }
+
+      struct control_props props = {
+        .name          = name,
+        .array_index   = i,
+        .interface     = SND_CTL_ELEM_IFACE_MIXER,
+        .category      = CATEGORY_DATA,
+        .step          = 1,
+        .read_only     = 0,
+        .value         = 0,
+        .offset        = offset,
+        .data_type     = devmap_type_to_data_type(member_type),
+        .notify_client = notify_client,
+        .notify_device = notify_device
+      };
+
+      if (!strcmp(type_str, "bool-bitmap")) {
+        /* Bitmap control - uses special read/write functions */
+        props.type = SND_CTL_ELEM_TYPE_BOOLEAN;
+        props.min = 0;
+        props.max = 1;
+        props.read_func = read_bitmap_data_control;
+        props.write_func = write_bitmap_data_control;
+
+      } else if (!strcmp(type_str, "enum")) {
+        /* Enum control - build source list if not already done */
+        struct json_object *values_from;
+        if (json_object_object_get_ex(control_config, "values-from", &values_from) &&
+            !strcmp(json_object_get_string(values_from), "output-group-sources")) {
+
+          if (!source_enum_names) {
+            err = build_source_enum(device, &source_enum_names, &source_enum_values, &source_enum_count);
+            if (err < 0) {
+              free(name);
+              return err;
+            }
+          }
+
+          props.type = SND_CTL_ELEM_TYPE_ENUMERATED;
+          props.enum_count = source_enum_count;
+          props.enum_names = calloc(source_enum_count, sizeof(char *));
+          props.enum_values = calloc(source_enum_count, sizeof(int));
+          for (int j = 0; j < source_enum_count; j++) {
+            props.enum_names[j] = strdup(source_enum_names[j]);
+            props.enum_values[j] = source_enum_values[j];
+          }
+          props.read_func = read_data_control;
+          props.write_func = write_data_control;
+        } else {
+          log_error("Unsupported enum values-from for %s", control_path);
+          free(name);
+          continue;
+        }
+
+      } else if (!strcmp(type_str, "int")) {
+        /* Integer control */
+        struct json_object *min_obj, *max_obj;
+        if (!json_object_object_get_ex(control_config, "min", &min_obj) ||
+            !json_object_object_get_ex(control_config, "max", &max_obj)) {
+          log_error("Missing min/max for int control %s", control_path);
+          free(name);
+          continue;
+        }
+
+        props.type = SND_CTL_ELEM_TYPE_INTEGER;
+        props.min = json_object_get_int(min_obj);
+        props.max = json_object_get_int(max_obj);
+        props.read_func = read_data_control;
+        props.write_func = write_data_control;
+
+        struct json_object *db_min_obj, *db_max_obj;
+        if (json_object_object_get_ex(control_config, "db-min", &db_min_obj) &&
+            json_object_object_get_ex(control_config, "db-max", &db_max_obj)) {
+          unsigned int *tlv = calloc(4, sizeof(unsigned int));
+          tlv[0] = SNDRV_CTL_TLVT_DB_MINMAX;
+          tlv[1] = 2 * sizeof(unsigned int);
+          tlv[2] = json_object_get_int(db_min_obj) * 100;
+          tlv[3] = json_object_get_int(db_max_obj) * 100;
+          props.tlv = tlv;
+        }
+
+      } else {
+        log_error("Unsupported control type %s for %s", type_str, control_path);
+        free(name);
+        continue;
+      }
+
+      err = add_control(device, &props);
+      if (err < 0) {
+        free(name);
+        free_source_enum(source_enum_names, source_enum_values, source_enum_count);
+        return err;
+      }
+    }
+  }
+
+  free_source_enum(source_enum_names, source_enum_values, source_enum_count);
+  return 0;
+}
+
 int init_output_controls(struct fcp_device *device) {
   struct json_object *output_controls, *output_link;
 
@@ -293,11 +514,22 @@ int init_output_controls(struct fcp_device *device) {
     return -1;
   }
 
-  return create_output_controls(
+  int err = create_output_controls(
     device,
     outputs,
     members,
     output_controls,
     output_link
   );
+  if (err < 0)
+    return err;
+
+  /* Get enums for output group controls */
+  struct json_object *enums;
+  if (!json_object_object_get_ex(device->devmap, "enums", &enums)) {
+    log_debug("No enums in device map - skipping output group controls");
+    return 0;
+  }
+
+  return create_output_group_controls(device, output_controls, enums);
 }
