@@ -1,0 +1,11 @@
+fcp-support (0.5.1) bookworm; urgency=medium
+
+  * Merge upstream changes, removed force path location
+
+ -- Philip S. Hempel <pshempel@linuxsrc.com>  Wed, 02 Apr 2025 09:32:37 -0400
+
+fcp-support (0.5.0-1ubuntu1) UNRELEASED; urgency=medium
+
+  * Initial release
+
+ -- Philip S. Hempel <pshempel@linuxsrc.com>  Thu, 06 Feb 2025 22:23:34 +0000

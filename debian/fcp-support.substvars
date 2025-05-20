@@ -1,0 +1,3 @@
+shlibs:Depends=libasound2t64 (>= 1.1.2), libc6 (>= 2.38), libjson-c5 (>= 0.15), libssl3t64 (>= 3.0.0), libsystemd0, zlib1g (>= 1:1.1.4)
+misc:Depends=
+misc:Pre-Depends=
