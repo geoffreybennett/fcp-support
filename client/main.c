@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Geoffrey D. Bennett <g@b4.vu>
+// SPDX-FileCopyrightText: 2024-2025 Geoffrey D. Bennett <g@b4.vu>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #define _GNU_SOURCE
@@ -31,7 +31,7 @@
 #define FCP_DRIVER_URL  GITHUB_URL "/linux-fcp"
 #define FCP_SUPPORT_URL GITHUB_URL "/fcp-support"
 #define ASG_URL         GITHUB_URL "/alsa-scarlett-gui"
-#define FIRMWARE_URL    GITHUB_URL "/fcp-firmware"
+#define FIRMWARE_URL    GITHUB_URL "/scarlett4-firmware"
 
 // List of found cards
 int card_count = 0;
@@ -144,8 +144,10 @@ static void add_found_firmware(
     // already have this firmware under a different name?
     if (found_firmware->firmware->usb_vid == firmware->usb_vid &&
         found_firmware->firmware->usb_pid == firmware->usb_pid &&
-        found_firmware->firmware->firmware_version ==
-          firmware->firmware_version)
+        firmware_cmp(
+          found_firmware->firmware->firmware_version,
+          firmware->firmware_version
+        ) == 0)
       return;
   }
 
@@ -229,12 +231,7 @@ static int found_firmware_cmp(const void *p1, const void *p2) {
     return 1;
 
   // compare firmware version, newest first
-  if (f1->firmware_version < f2->firmware_version)
-    return 1;
-  if (f1->firmware_version > f2->firmware_version)
-    return -1;
-
-  return 0;
+  return -firmware_cmp(f1->firmware_version, f2->firmware_version);
 }
 
 static void enum_firmwares(void) {
