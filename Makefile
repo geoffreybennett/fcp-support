@@ -39,6 +39,7 @@ LDFLAGS += -lm
 
 SERVER_CFLAGS := $(shell $(PKG_CONFIG) --cflags libsystemd)
 SERVER_LDFLAGS := $(shell $(PKG_CONFIG) --libs libsystemd)
+SERVER_CFLAGS += $(if $(SERVER_LDFLAGS), -DHAVE_SYSTEMD)
 
 COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) -c
 
