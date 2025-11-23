@@ -298,21 +298,6 @@ void device_handle_notification(struct fcp_device *device, uint32_t notification
     if (!(notification & props->notify_client))
       continue;
 
-    // Allocate space for values
-    int count = props->component_count ? props->component_count : 1;
-    int values[count];
-
-    // Get new value from device
-    int err = props->read_func(device, props, values);
-    if (err < 0) {
-      log_error(
-        "Cannot get data for control %s: %s",
-        props->name,
-        snd_strerror(err)
-      );
-      continue;
-    }
-
     // Get current ALSA value
     snd_ctl_elem_value_t *alsa_value;
     snd_ctl_elem_id_t *id;
@@ -323,7 +308,7 @@ void device_handle_notification(struct fcp_device *device, uint32_t notification
     snd_ctl_elem_id_set_name(id, props->name);
     snd_ctl_elem_value_set_id(alsa_value, id);
 
-    err = snd_ctl_elem_read(device->ctl, alsa_value);
+    int err = snd_ctl_elem_read(device->ctl, alsa_value);
     if (err < 0) {
       log_error(
         "Failed to read value for control %s: %s",
@@ -334,18 +319,66 @@ void device_handle_notification(struct fcp_device *device, uint32_t notification
     }
 
     bool changed = false;
-    for (int j = 0; j < count; j++) {
-      int old_value = snd_ctl_elem_value_get_integer(alsa_value, j);
-      if (values[j] != old_value) {
-        changed = true;
-        snd_ctl_elem_value_set_integer(alsa_value, j, values[j]);
 
-        log_debug(
-          "Control %s value changed at device from %d to %d",
+    if (props->type == SND_CTL_ELEM_TYPE_BYTES) {
+      // Handle BYTES controls
+      unsigned char *new_buf = calloc(1, props->size);
+      if (!new_buf) {
+        log_error("Cannot allocate memory for bytes notification");
+        continue;
+      }
+
+      err = props->read_bytes_func(device, props, new_buf, props->size);
+      if (err < 0) {
+        log_error(
+          "Cannot get data for control %s: %s",
           props->name,
-          old_value,
-          values[j]
+          snd_strerror(err)
         );
+        free(new_buf);
+        continue;
+      }
+
+      const unsigned char *old_buf = snd_ctl_elem_value_get_bytes(alsa_value);
+      if (memcmp(old_buf, new_buf, props->size) != 0) {
+        changed = true;
+        snd_ctl_elem_set_bytes(alsa_value, new_buf, props->size);
+        log_debug("Control %s bytes changed at device", props->name);
+
+        // Update stored value
+        memcpy(props->bytes_value, new_buf, props->size);
+      }
+
+      free(new_buf);
+
+    } else {
+      // Handle INTEGER, BOOLEAN, ENUMERATED controls
+      int count = props->component_count ? props->component_count : 1;
+      int values[count];
+
+      err = props->read_func(device, props, values);
+      if (err < 0) {
+        log_error(
+          "Cannot get data for control %s: %s",
+          props->name,
+          snd_strerror(err)
+        );
+        continue;
+      }
+
+      for (int j = 0; j < count; j++) {
+        int old_value = snd_ctl_elem_value_get_integer(alsa_value, j);
+        if (values[j] != old_value) {
+          changed = true;
+          snd_ctl_elem_value_set_integer(alsa_value, j, values[j]);
+
+          log_debug(
+            "Control %s value changed at device from %d to %d",
+            props->name,
+            old_value,
+            values[j]
+          );
+        }
       }
     }
 
@@ -375,37 +408,71 @@ int device_handle_control_change(
   if (!props)
     return 0;  // Not one of our controls
 
-  int new_val = snd_ctl_elem_value_get_integer(new_value, 0);
-
-  if (new_val == props->value)
-    return 0;  // No change
-
-  log_debug(
-    "Control %s value changed at ALSA from %d to %d",
-    props->name,
-    props->value,
-    new_val
-  );
-
   // Ignore read-only controls
   if (props->read_only)
     return 0;
 
-  if (!props->write_func) {
-    log_error("Control %s has no write function", props->name);
-    return 0;
-  }
+  int err;
 
-  // Update value and notify device
-  props->value = new_val;
-  int err = props->write_func(device, props, new_val);
-  if (err < 0) {
-    log_error(
-      "Cannot write data for control %s: %s",
+  if (props->type == SND_CTL_ELEM_TYPE_BYTES) {
+    // Handle BYTES controls
+    if (!props->write_bytes_func) {
+      log_error("Control %s has no write function", props->name);
+      return 0;
+    }
+
+    const unsigned char *new_buf = snd_ctl_elem_value_get_bytes(new_value);
+
+    // Check if the data has actually changed
+    if (memcmp(props->bytes_value, new_buf, props->size) == 0) {
+      return 0;  // No change
+    }
+
+    log_debug("Control %s bytes changed at ALSA", props->name);
+
+    err = props->write_bytes_func(device, props, new_buf, props->size);
+    if (err < 0) {
+      log_error(
+        "Cannot write data for control %s: %s",
+        props->name,
+        snd_strerror(err)
+      );
+      return err;
+    }
+
+    // Update stored value after successful write
+    memcpy(props->bytes_value, new_buf, props->size);
+
+  } else {
+    // Handle INTEGER, BOOLEAN, ENUMERATED controls
+    int new_val = snd_ctl_elem_value_get_integer(new_value, 0);
+
+    if (new_val == props->value)
+      return 0;  // No change
+
+    log_debug(
+      "Control %s value changed at ALSA from %d to %d",
       props->name,
-      snd_strerror(err)
+      props->value,
+      new_val
     );
-    return err;
+
+    if (!props->write_func) {
+      log_error("Control %s has no write function", props->name);
+      return 0;
+    }
+
+    // Update value and notify device
+    props->value = new_val;
+    err = props->write_func(device, props, new_val);
+    if (err < 0) {
+      log_error(
+        "Cannot write data for control %s: %s",
+        props->name,
+        snd_strerror(err)
+      );
+      return err;
+    }
   }
 
   if (props->notify_device) {

@@ -14,6 +14,9 @@ typedef enum {
 void log_init(void);
 void log_msg(log_level_t level, const char *fmt, ...);
 
+// Format bytes data for debug logging (returns ASCII or hex)
+const char *format_bytes_debug(const unsigned char *data, size_t size);
+
 // Convenience macros
 #define log_error(...) log_msg(LOG_LEVEL_ERROR, __VA_ARGS__)
 #define log_warning(...) log_msg(LOG_LEVEL_WARNING, __VA_ARGS__)

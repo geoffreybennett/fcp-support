@@ -251,3 +251,52 @@ int write_bitmap_data_control(
 
   return fcp_data_write(device->hwdep, props->offset, width, read_value);
 }
+
+int read_bytes_control(
+  struct fcp_device    *device,
+  struct control_props *props,
+  void                 *data,
+  size_t                size
+) {
+  if (!props->offset) {
+    log_error("Control %s has no offset", props->name);
+    return -1;
+  }
+
+  if (size != props->size) {
+    log_error(
+      "Size mismatch for control %s: expected %d, got %zu",
+      props->name, props->size, size
+    );
+    return -1;
+  }
+
+  return fcp_data_read_buf(device->hwdep, props->offset, size, data);
+}
+
+int write_bytes_control(
+  struct fcp_device    *device,
+  struct control_props *props,
+  const void           *data,
+  size_t                size
+) {
+  if (props->read_only) {
+    log_error("Read-only control %s cannot be written", props->name);
+    return -1;
+  }
+
+  if (!props->offset) {
+    log_error("Control %s has no offset", props->name);
+    return -1;
+  }
+
+  if (size != props->size) {
+    log_error(
+      "Size mismatch for control %s: expected %d, got %zu",
+      props->name, props->size, size
+    );
+    return -1;
+  }
+
+  return fcp_data_write_buf(device->hwdep, props->offset, size, data);
+}

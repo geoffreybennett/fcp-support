@@ -70,3 +70,50 @@ void log_msg(log_level_t level, const char *fmt, ...) {
 
   va_end(args);
 }
+
+// Format bytes data for debug logging
+// Returns ASCII string if all printable, otherwise hex
+const char *format_bytes_debug(const unsigned char *data, size_t size) {
+  static char buf[512];
+  size_t i;
+
+  // Find the length of printable ASCII content
+  // (allow null bytes after printable content for null-terminated strings)
+  size_t printable_len = 0;
+
+  for (i = 0; i < size; i++) {
+    if (data[i] == 0) {
+      break;
+    } else if (data[i] >= 0x20 && data[i] <= 0x7E) {
+      printable_len = i + 1;
+    } else {
+      // Non-printable, non-null byte
+      printable_len = 0;
+      break;
+    }
+  }
+
+  // If we have printable content, display as string
+  if (printable_len > 0 && printable_len < sizeof(buf) - 3) {
+    buf[0] = '"';
+    memcpy(buf + 1, data, printable_len);
+    buf[printable_len + 1] = '"';
+    buf[printable_len + 2] = '\0';
+  } else {
+    // Display as hex
+    char *p = buf;
+    size_t max_bytes = (sizeof(buf) - 10) / 3;  // "XX " per byte + "..."
+    size_t display_size = size < max_bytes ? size : max_bytes;
+
+    for (i = 0; i < display_size; i++) {
+      p += sprintf(p, "%02x ", data[i]);
+    }
+    if (size > display_size) {
+      sprintf(p, "... (%zu bytes)", size);
+    } else if (p > buf) {
+      *(p - 1) = '\0';  // Remove trailing space
+    }
+  }
+
+  return buf;
+}

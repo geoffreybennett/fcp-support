@@ -122,6 +122,8 @@ int add_user_control(struct fcp_device *device, struct control_props *props) {
       props->enum_count,
       (const char * const *)props->enum_names
     );
+  } else if (props->type == SND_CTL_ELEM_TYPE_BYTES) {
+    err = snd_ctl_add_bytes_elem_set(ctl, info, 1, props->size);
   } else {
     log_error("Invalid control type %d for %s", props->type, props->name);
     return -1;
@@ -151,53 +153,77 @@ int add_user_control(struct fcp_device *device, struct control_props *props) {
   }
 
   /* Get the initial value */
-  int count = props->component_count ? props->component_count : 1;
-  int values[count];
-
-  err = props->read_func(device, props, values);
-  if (err < 0) {
-    log_error(
-      "Cannot get initial value for control '%s': %s",
-      props->name,
-      snd_strerror(err)
-    );
-    return err;
-  }
-
-  /* Validate values are in range */
-  for (int i = 0; i < count; i++) {
-    if (values[i] < props->min || values[i] > props->max) {
-      log_error(
-        "Initial value %d for %s is out of range [%d, %d]",
-        values[i],
-        props->name,
-        props->min,
-        props->max
-      );
-      values[i] = values[i] < props->min ? props->min : props->max;
-    }
-  }
-
-  /* Save the initial value (writing is not supported for
-   * multi-component controls so we don't need to keep the
-   * value)
-   */
-  if (!props->component_count)
-    props->value = values[0];
-
   snd_ctl_elem_value_t *elem_value;
   snd_ctl_elem_value_alloca(&elem_value);
   snd_ctl_elem_value_set_id(elem_value, id);
 
-  for (int i = 0; i < count; i++)
-    snd_ctl_elem_value_set_integer(elem_value, i, values[i]);
+  if (props->type == SND_CTL_ELEM_TYPE_BYTES) {
+    /* Handle BYTES controls */
+    props->bytes_value = calloc(1, props->size);
+    if (!props->bytes_value) {
+      log_error("Cannot allocate memory for bytes control");
+      return -ENOMEM;
+    }
+
+    err = props->read_bytes_func(device, props, props->bytes_value, props->size);
+    if (err < 0) {
+      log_error(
+        "Cannot get initial value for control '%s': %s",
+        props->name,
+        snd_strerror(err)
+      );
+      free(props->bytes_value);
+      props->bytes_value = NULL;
+      return err;
+    }
+
+    snd_ctl_elem_set_bytes(elem_value, props->bytes_value, props->size);
+
+  } else {
+    /* Handle INTEGER, BOOLEAN, ENUMERATED controls */
+    int count = props->component_count ? props->component_count : 1;
+    int values[count];
+
+    err = props->read_func(device, props, values);
+    if (err < 0) {
+      log_error(
+        "Cannot get initial value for control '%s': %s",
+        props->name,
+        snd_strerror(err)
+      );
+      return err;
+    }
+
+    /* Validate values are in range */
+    for (int i = 0; i < count; i++) {
+      if (values[i] < props->min || values[i] > props->max) {
+        log_error(
+          "Initial value %d for %s is out of range [%d, %d]",
+          values[i],
+          props->name,
+          props->min,
+          props->max
+        );
+        values[i] = values[i] < props->min ? props->min : props->max;
+      }
+    }
+
+    /* Save the initial value (writing is not supported for
+     * multi-component controls so we don't need to keep the
+     * value)
+     */
+    if (!props->component_count)
+      props->value = values[0];
+
+    for (int i = 0; i < count; i++)
+      snd_ctl_elem_value_set_integer(elem_value, i, values[i]);
+  }
 
   err = snd_ctl_elem_write(ctl, elem_value);
   if (err < 0) {
     log_error(
-      "Cannot set %s to %d: %s",
+      "Cannot set %s: %s",
       props->name,
-      props->value,
       snd_strerror(err)
     );
     return err;

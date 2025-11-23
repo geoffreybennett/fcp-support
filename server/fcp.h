@@ -44,6 +44,8 @@ int fcp_esp_dfu_start(snd_hwdep_t *hwdep, uint32_t length, const uint8_t *md5_ha
 int fcp_esp_dfu_write(snd_hwdep_t *hwdep, const void *data, size_t count);
 int fcp_data_read(snd_hwdep_t *hwdep, int offset, int size, bool is_signed, int *value);
 int fcp_data_write(snd_hwdep_t *hwdep, int offset, int size, int value);
+int fcp_data_read_buf(snd_hwdep_t *hwdep, int offset, int size, void *buf);
+int fcp_data_write_buf(snd_hwdep_t *hwdep, int offset, int size, const void *buf);
 int fcp_data_notify(snd_hwdep_t *hwdep, int event);
 int fcp_devmap_info(snd_hwdep_t *hwdep);
 int fcp_devmap_read(snd_hwdep_t *hwdep, char **buf);

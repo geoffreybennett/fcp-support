@@ -448,6 +448,12 @@ static int create_global_control(
     props.min = 0;
     props.max = 1;
 
+  } else if (!strcmp(type_str, "bytes")) {
+    props.type = SND_CTL_ELEM_TYPE_BYTES;
+    props.size = json_object_get_int(json_object_object_get(member, "size"));
+    props.read_bytes_func = read_bytes_control;
+    props.write_bytes_func = write_bytes_control;
+
   } else if (!strcmp(type_str, "int")) {
     struct json_object *min, *max, *interface, *access;
 

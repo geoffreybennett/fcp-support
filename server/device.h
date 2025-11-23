@@ -67,9 +67,13 @@ struct control_props {
   int    component_count;  // >0 for multi-component controls
   int   *offsets;          // offsets of each component
   int   *data_types;       // types of each component
+  int    size;             // for BYTES controls
   int    value;
+  void  *bytes_value;      // for BYTES controls - stores current value
   int    (*read_func)(struct fcp_device *, struct control_props *, int *);
   int    (*write_func)(struct fcp_device *, struct control_props *, int);
+  int    (*read_bytes_func)(struct fcp_device *, struct control_props *, void *, size_t);
+  int    (*write_bytes_func)(struct fcp_device *, struct control_props *, const void *, size_t);
 };
 
 void remove_all_user_controls(struct fcp_device *device);

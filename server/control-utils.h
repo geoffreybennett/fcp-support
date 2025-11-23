@@ -33,3 +33,17 @@ int write_bitmap_data_control(
 
 int devmap_type_to_data_type(const char *type);
 int devmap_type_to_data_type_with_width(const char *type, int width);
+
+int read_bytes_control(
+  struct fcp_device    *device,
+  struct control_props *props,
+  void                 *data,
+  size_t                size
+);
+
+int write_bytes_control(
+  struct fcp_device    *device,
+  struct control_props *props,
+  const void           *data,
+  size_t                size
+);

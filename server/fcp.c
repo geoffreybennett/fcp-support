@@ -827,6 +827,85 @@ int fcp_data_write(snd_hwdep_t *hwdep, int offset, int size, int value) {
   return 0;
 }
 
+/* Read arbitrary-sized buffer of data bytes */
+int fcp_data_read_buf(
+  snd_hwdep_t *hwdep,
+  int          offset,
+  int          size,
+  void        *buf
+) {
+  struct {
+    uint32_t offset;
+    uint32_t size;
+  } __attribute__((packed)) req;
+
+  /* Prepare request data */
+  req.offset = htole32(offset);
+  req.size = htole32(size);
+
+  /* Send command */
+  int err = fcp_cmd(
+    hwdep,
+    FCP_OPCODE_DATA_READ,
+    &req, sizeof(req),
+    buf, size
+  );
+  if (err < 0) {
+    log_error("Get data buffer failed: %s", snd_strerror(err));
+    return err;
+  }
+
+  log_debug(
+    "Read data buffer: offset=%d size=%d data=%s",
+    offset, size, format_bytes_debug(buf, size)
+  );
+  return 0;
+}
+
+/* Write arbitrary-sized buffer of data bytes */
+int fcp_data_write_buf(
+  snd_hwdep_t *hwdep,
+  int          offset,
+  int          size,
+  const void  *buf
+) {
+  int req_size = sizeof(uint32_t) * 2 + size;
+  struct {
+    uint32_t offset;
+    uint32_t size;
+    uint8_t  data[];
+  } __attribute__((packed)) *req = calloc(1, req_size);
+
+  if (!req) {
+    log_error("Cannot allocate memory for data write buffer");
+    return -ENOMEM;
+  }
+
+  /* Prepare request data */
+  req->offset = htole32(offset);
+  req->size = htole32(size);
+  memcpy(req->data, buf, size);
+
+  log_debug(
+    "Write data buffer: offset=%d size=%d data=%s",
+    offset, size, format_bytes_debug(buf, size)
+  );
+
+  /* Send command */
+  int err = fcp_cmd(
+    hwdep,
+    FCP_OPCODE_DATA_WRITE,
+    req, req_size,
+    NULL, 0
+  );
+  if (err < 0) {
+    log_error("Set data buffer failed at offset %d: %s", offset, snd_strerror(err));
+  }
+
+  free(req);
+  return err;
+}
+
 int fcp_data_notify(snd_hwdep_t *hwdep, int event) {
   struct {
     uint32_t event;

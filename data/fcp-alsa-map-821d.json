@@ -83,6 +83,11 @@
         "versionBuildNr"
       ]
     },
+    "name": {
+      "name": "Name",
+      "interface": "card",
+      "type": "bytes"
+    },
     "esp-firmware-version": {
       "name": "ESP Firmware Version",
       "interface": "card",
