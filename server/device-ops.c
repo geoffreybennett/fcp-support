@@ -531,6 +531,10 @@ int device_load_config(struct fcp_device *device) {
   for (size_t i = 0; i < ARRAY_SIZE(search_dirs); i++) {
     device->fam = try_load_json(search_dirs[i], filename);
     if (device->fam) {
+      if (search_dirs[i])
+        log_info("Loaded FCP ALSA map from %s/%s", search_dirs[i], filename);
+      else
+        log_info("Loaded FCP ALSA map from %s", filename);
       free(filename);
       return 0;
     }
