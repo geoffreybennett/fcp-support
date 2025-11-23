@@ -277,7 +277,9 @@ static int handle_app_firmware_update(
     send_error(client_fd, FCP_SOCKET_ERR_INVALID_LENGTH);
     return FCP_SOCKET_ERR_INVALID_LENGTH;
   } else if (payload->size > upgrade_segment_size) {
-    log_error("Firmware data too large: %d", payload->size);
+    log_error(
+      "Firmware data too large: %d > %d", payload->size, upgrade_segment_size
+    );
     send_error(client_fd, FCP_SOCKET_ERR_INVALID_LENGTH);
     return FCP_SOCKET_ERR_INVALID_LENGTH;
   }
