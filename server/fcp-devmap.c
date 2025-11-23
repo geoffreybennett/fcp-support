@@ -137,24 +137,57 @@ static int fcp_devmap_read_from_device(struct fcp_device *device) {
 
   json_buf[json_len] = '\0';
 
+  /* parse json first to extract version information */
+  device->devmap = json_tokener_parse((char *)json_buf);
+  if (!device->devmap) {
+    free(json_buf);
+    return -EINVAL;
+  }
+
+  /* extract version information and read actual version from device */
+  uint32_t firmware_version = 0;
+  struct json_object *structs, *app_space, *members, *version_obj;
+  struct json_object *offset_obj, *type_obj;
+
+  if (json_object_object_get_ex(device->devmap, "structs", &structs) &&
+      json_object_object_get_ex(structs, "APP_SPACE", &app_space) &&
+      json_object_object_get_ex(app_space, "members", &members) &&
+      json_object_object_get_ex(members, "versionStageRelease", &version_obj) &&
+      json_object_object_get_ex(version_obj, "offset", &offset_obj) &&
+      json_object_object_get_ex(version_obj, "type", &type_obj)) {
+
+    int offset = json_object_get_int(offset_obj);
+    const char *type_str = json_object_get_string(type_obj);
+
+    /* verify the type is uint32 as expected */
+    if (strcmp(type_str, "uint32") == 0) {
+      /* read the actual firmware version from the device */
+      int version_value;
+      int err = fcp_data_read(hwdep, offset, 4, false, &version_value);
+      if (err >= 0) {
+        firmware_version = (uint32_t)version_value;
+      }
+    }
+  }
+
   /* write the json to a file for debugging */
   char *fn;
-  if (asprintf(&fn, "/tmp/fcp-devmap-%04x.json", device->usb_pid) < 0) {
-    log_error("Failed to allocate memory for filename");
-    exit(1);
+  if (firmware_version > 0) {
+    if (asprintf(&fn, "/tmp/fcp-devmap-%04x-%d.json", device->usb_pid, firmware_version) < 0) {
+      log_error("Failed to allocate memory for filename");
+      exit(1);
+    }
+  } else {
+    if (asprintf(&fn, "/tmp/fcp-devmap-%04x.json", device->usb_pid) < 0) {
+      log_error("Failed to allocate memory for filename");
+      exit(1);
+    }
   }
 
   FILE *f = fopen(fn, "w");
   if (f) {
     fwrite(json_buf, 1, json_len, f);
     fclose(f);
-  }
-
-  /* parse json */
-  device->devmap = json_tokener_parse((char *)json_buf);
-  if (!device->devmap) {
-    free(json_buf);
-    return -EINVAL;
   }
 
   return 0;
