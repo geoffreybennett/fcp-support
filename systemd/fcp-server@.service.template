@@ -1,7 +1,6 @@
 [Unit]
 Description=Focusrite Control Protocol Server for Card %i
 BindsTo=dev-snd-controlC%i.device
-StopWhenUnneeded=yes
 
 [Service]
 DynamicUser=yes
