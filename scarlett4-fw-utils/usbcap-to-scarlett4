@@ -1,0 +1,181 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Digest::SHA qw(sha256);
+use Digest::MD5 qw(md5);
+
+my %magic = (
+  leapfrog => "SCARLEAP",
+  esp      => "SCARLESP",
+  app      => "SCARLET4",
+);
+
+my $vid = 0x1235;
+
+# Read and parse the whole file - identify firmware boundaries on-the-fly
+sub read_packets {
+  my $pid;
+  my %firmware_packets = (
+    leapfrog => [],
+    esp      => [],
+    app      => [],
+  );
+
+  my $current_device;
+  my $current_fw_type;
+  my $seen_esp = 0;
+
+  while (<>) {
+    chomp;
+
+    # New device found - extract PID
+    if (/C Ci:(\d+):(\d+):0 0 18 = ........ ........ 3512(..)(..) ........ ....$/) {
+      my $device = $2;
+      next if $device eq "000";
+      $current_device = $device;
+      $pid = hex("$4$3");
+    }
+
+    next unless $current_device;
+
+    # Collect firmware packets and categorize by type
+    if (/S Co:\d+:$current_device:0 s 21 02 .* = ((?:04400000|00900000|01900000) .*)/) {
+      my $packet = $1;
+      my $packet_type;
+
+      # Determine firmware type based on packet signature and context
+      if ($packet =~ /^00900000/ || $packet =~ /^01900000/) {
+        $packet_type = 'esp';
+        $seen_esp = 1;
+      } elsif ($packet =~ /^04400000/) {
+        # XMOS packets: leapfrog comes first, app comes after ESP
+        $packet_type = $seen_esp ? 'app' : 'leapfrog';
+      }
+
+      # Track firmware type changes (boundary detection)
+      if (defined $current_fw_type && $current_fw_type ne $packet_type) {
+        print "firmware boundary: $current_fw_type -> $packet_type\n";
+      }
+      $current_fw_type = $packet_type;
+
+      push @{$firmware_packets{$packet_type}}, $packet;
+    }
+  }
+
+  return ($pid, \%firmware_packets);
+}
+
+# Extract firmware from packet list
+sub extract_firmware {
+  my($type, $packets) = @_;
+  my $firmware = '';
+  my $md5sum;
+
+  if (!$packets || !@$packets) {
+    die "no packets found for $type firmware\n";
+  }
+
+  # Check first packet to determine format
+  my $first = $packets->[0];
+  my $is_esp = $first =~ /^00900000/;
+
+  if ($is_esp) {
+    my @words = split / /, $first;
+    my $length = unpack('V', pack('H*', $words[5]));
+    $md5sum = join '', @words[6..9];
+
+    # Extract data blocks
+    for my $packet (@$packets) {
+      next unless $packet =~ /^01900000/;
+      my @data = split / /, $packet;
+      $firmware .= pack 'H*', join '', @data[4..$#data];
+    }
+
+    # Validate ESP firmware
+    die "ESP length mismatch\n" if length($firmware) != $length;
+    die "ESP MD5 mismatch\n" if md5($firmware) ne pack('H*', $md5sum);
+  } else {
+    # XMOS firmware format
+    for my $packet (@$packets) {
+      next unless $packet =~ /^04400000/;
+      my @data = split / /, $packet;
+      $firmware .= pack 'H*', join '', @data[7..$#data];
+    }
+  }
+
+  my $length = length($firmware);
+  print "extracted $type firmware, size: $length bytes\n";
+  if (!$length) {
+    die "no firmware data extracted for $type\n";
+  }
+
+  return $firmware;
+}
+
+sub save_firmware_section {
+  my($f, $fn, $pid, $type, $data) = @_;
+
+  my $magic = $magic{$type} or die "unknown type $type\n";
+
+  print $f $magic,
+          pack('n', $vid),
+          pack('n', $pid),
+          pack('NNNN', 0, 0, 0, 0),
+          pack('N', length($data)),
+          sha256($data),
+          $data
+    or die "can't write to $fn: $!\n";
+}
+
+sub save_firmware {
+  my($pid, $fws) = @_;
+
+  my $fn = sprintf("scarlett4-%04x-%04x-unk.bin", $vid, $pid);
+  while (-e $fn) {
+    print "file $fn already exists, try a different name\n";
+    if ($fn =~ /^(.*?)(\d*)$/) {
+      my $base = $1;
+      my $num = $2;
+      $num = 0 unless $num;
+      $num++;
+      $fn = sprintf("%s%d", $base, $num);
+    } else {
+      die "can't parse filename $fn\n";
+    }
+  }
+
+  open my $f, ">", $fn or die "can't open $fn for writing: $!\n";
+  binmode $f;
+
+  # write container header
+  print $f "SCARLBOX",
+          pack('n', $vid),
+          pack('n', $pid),
+          pack('NNNN', 0, 0, 0, 0),
+          pack('N', 3),
+    or die "can't write to $fn: $!\n";
+
+  for my $type (qw(leapfrog esp app)) {
+    save_firmware_section($f, $fn, $pid, $type, $fws->{$type});
+  }
+
+  close $f or die "can't close $fn: $!\n";
+
+  print "wrote $fn\n";
+}
+
+$| = 1;
+
+# Process file
+my($pid, $firmware_packets) = read_packets();
+
+die "no PID found\n" unless $pid;
+
+my $fws = {};
+for my $type (qw(leapfrog esp app)) {
+  my $fw = extract_firmware($type, $firmware_packets->{$type});
+  $fws->{$type} = $fw;
+}
+
+save_firmware($pid, $fws);

@@ -1,0 +1,101 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+sub get_version {
+  my ($control) = @_;
+  my $output = `amixer -cGen cget 'iface=CARD,name=$control'`;
+  if ($output =~ /: values=(\d+),(\d+),(\d+),(\d+)/) {
+    return [$1, $2, $3, $4];
+  }
+  return undef;
+}
+
+die "Usage: $0 filename" unless @ARGV == 1;
+my $filename = $ARGV[0];
+
+# Check for ESP control to determine if leapfrog
+my $esp_ver = get_version("ESP Firmware Version");
+my $is_leapfrog = !defined $esp_ver;
+
+my $app_ver = get_version("Firmware Version");
+die "Could not get app version" unless defined $app_ver;
+
+print "Current versions:\n";
+print "App: @$app_ver\n";
+print "ESP: " . ($is_leapfrog ? "N/A (Leapfrog mode)" : "@$esp_ver") . "\n";
+
+open my $fh, '+<:raw', $filename or die "Could not open $filename: $!";
+
+my $magic;
+read($fh, $magic, 8) == 8 or die "Could not read magic: $!";
+
+if ($magic ne "SCARLBOX") {
+  die "Invalid magic: $magic (expected SCARLBOX)";
+}
+
+my $vidpid;
+read($fh, $vidpid, 4) == 4 or die "Could not read container VID/PID: $!";
+my($vid, $pid) = unpack("nn", $vidpid);
+printf("Container VID/PID: %04x:%04x\n", $vid, $pid);
+
+if (!$is_leapfrog) {
+  # Update container version (same as app)
+  print $fh pack("N4", @$app_ver);
+  seek($fh, 4, 1);  # Skip num_sections
+} else {
+  seek($fh, 20, 1);  # Skip app version, num_sections
+}
+
+while (!eof($fh)) {
+  read($fh, $magic, 8) == 8 or last;
+  if ($magic =~ /^SCARL(ET4|ESP|EAP)$/) {
+    print "Found section: $magic\n";
+
+    read($fh, $vidpid, 4) == 4 or die "Could not read section VID/PID: $!";
+    my($svid, $spid) = unpack("nn", $vidpid);
+    printf("Section VID/PID: %04x:%04x\n", $svid, $spid);
+    if ($svid != $vid || $spid != $pid) {
+      die "Section VID/PID does not match container VID/PID";
+    }
+
+    if ($magic eq "SCARLET4" || $magic eq "SCARLESP") {
+      if ($is_leapfrog) {
+        print "Skipping section\n";
+        seek($fh, 16, 1);  # Skip version
+      } else {
+        my $ver = $magic eq "SCARLET4" ? $app_ver : $esp_ver;
+        print "Updating section, new version: @$ver\n";
+        print $fh pack("N4", @$ver);
+      }
+    } elsif ($magic eq "SCARLEAP") {
+      if (!$is_leapfrog) {
+        print "Skipping section\n";
+        seek($fh, 16, 1);  # Skip version
+      } else {
+        my $ver = $app_ver;
+        print "Updating section, new version: @$ver\n";
+        print $fh pack("N4", @$ver);
+      }
+    }
+    my $length;
+    read($fh, $length, 4) == 4 or die "Failed to read section length: $!";
+    $length = unpack("N", $length);
+    seek($fh, 32 + $length, 1); # Skip SHA256 + firmware data
+  } else {
+    die "Unknown section: $magic\n";
+  }
+}
+
+close $fh;
+
+# Suggest rename command if ESP version is available (second reboot)
+if (!$is_leapfrog) {
+  my $app_ver_str = $app_ver->[2];
+  (my $new_filename = $ARGV[0]) =~ s/-unk\.bin\d*$/-$app_ver_str.bin/;
+  if ($new_filename ne $ARGV[0]) {
+    print "\n# Suggested rename command:\n";
+    print "mv $ARGV[0] $new_filename\n";
+  }
+}
