@@ -1,0 +1,69 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Digest::SHA qw(sha256_hex);
+
+sub read_bytes {
+  my ($fh, $len) = @_;
+  my $buf;
+  my $got = read($fh, $buf, $len);
+  die "unexpected EOF\n" if $got != $len;
+  return $buf;
+}
+
+sub read_u16 {
+  my ($fh) = @_;
+  return unpack('n', read_bytes($fh, 2));
+}
+
+sub read_u32 {
+  my ($fh) = @_;
+  return unpack('N', read_bytes($fh, 4));
+}
+
+my $filename = shift @ARGV or die "usage: $0 <filename>\n";
+
+open my $fh, '<', $filename or die "can't open $filename: $!\n";
+binmode $fh;
+
+# Read container header
+my $magic = read_bytes($fh, 8);
+die "invalid container magic: $magic\n" unless $magic eq 'SCARLBOX';
+
+my $vid = read_u16($fh);
+my $pid = read_u16($fh);
+my @version = map { read_u32($fh) } 1..4;
+my $num_sections = read_u32($fh);
+
+printf "Container:\n";
+printf "  Magic: %s\n", $magic;
+printf "  VID: 0x%04x\n", $vid;
+printf "  PID: 0x%04x\n", $pid;
+printf "  Version: %d.%d.%d.%d\n", @version;
+printf "  Sections: %d\n\n", $num_sections;
+
+# Read each section
+for my $i (1..$num_sections) {
+  my $sect_magic = read_bytes($fh, 8);
+  my $sect_vid = read_u16($fh);
+  my $sect_pid = read_u16($fh);
+  my @sect_version = map { read_u32($fh) } 1..4;
+  my $sect_len = read_u32($fh);
+  my $sect_sha256 = unpack('H*', read_bytes($fh, 32));
+  my $sect_data = read_bytes($fh, $sect_len);
+
+  my $computed_sha256 = sha256_hex($sect_data);
+  my $sha_match = $computed_sha256 eq $sect_sha256 ? "OK" : "MISMATCH";
+
+  printf "Section %d:\n", $i;
+  printf "  Magic: %s\n", $sect_magic;
+  printf "  VID: 0x%04x\n", $sect_vid;
+  printf "  PID: 0x%04x\n", $sect_pid;
+  printf "  Version: %d.%d.%d.%d\n", @sect_version;
+  printf "  Length: %d bytes\n", $sect_len;
+  printf "  SHA256: %s (%s)\n", $sect_sha256, $sha_match;
+  printf "\n";
+}
+
+close $fh;
