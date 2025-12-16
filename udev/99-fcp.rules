@@ -1,4 +1,5 @@
 SUBSYSTEM=="sound", ATTRS{idVendor}=="1235", \
     KERNEL=="control*", ACTION=="add", \
+    GROUP="audio", MODE="0660", \
     ENV{SYSTEMD_WANTS}="fcp-server@%n.service", \
     TAG+="systemd"
