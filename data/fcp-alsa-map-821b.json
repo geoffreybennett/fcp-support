@@ -172,6 +172,15 @@
       "name": "Speaker Switching Alt Playback Switch",
       "type": "bool"
     },
+    "audioConfig": {
+      "name": "Digital I/O Mode Capture Enum",
+      "type": "enum",
+      "values": [
+        { "name": "ADAT",           "value": 0 },
+        { "name": "Optical S/PDIF", "value": 6 }
+      ],
+      "save": true
+    },
     "enableStandalone": {
       "name": "Standalone Switch",
       "type": "bool",
