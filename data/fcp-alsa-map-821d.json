@@ -197,8 +197,8 @@
       "name": "Digital I/O Mode Capture Enum",
       "type": "enum",
       "values": [
-        { "name": "S/PDIF RCA",     "value": 0 },
-        { "name": "S/PDIF Optical", "value": 6 },
+        { "name": "RCA S/PDIF",     "value": 0 },
+        { "name": "Optical S/PDIF", "value": 6 },
         { "name": "Dual ADAT",      "value": 1 }
       ],
       "save": true
