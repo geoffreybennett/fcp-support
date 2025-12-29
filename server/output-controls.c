@@ -487,6 +487,63 @@ static int create_output_group_controls(
   return 0;
 }
 
+/* Create controls for array-based global output members like outputMute */
+static int create_global_output_array_controls(
+  struct fcp_device  *device,
+  struct json_object *members,
+  struct json_object *output_controls
+) {
+  /* List of global array members and their config keys */
+  static const struct {
+    const char *member_name;
+    const char *config_key;
+  } global_arrays[] = {
+    { "outputMute", "mute" },
+    { NULL, NULL }
+  };
+
+  for (int g = 0; global_arrays[g].member_name; g++) {
+    const char *member_name = global_arrays[g].member_name;
+    const char *config_key = global_arrays[g].config_key;
+
+    /* Check if this member exists in the device map */
+    struct json_object *member;
+    if (!json_object_object_get_ex(members, member_name, &member))
+      continue;
+
+    /* Check if we have config for this control type */
+    struct json_object *control_config;
+    if (!json_object_object_get_ex(output_controls, config_key, &control_config))
+      continue;
+
+    /* Get array size */
+    struct json_object *array_shape;
+    if (!json_object_object_get_ex(member, "array-shape", &array_shape))
+      continue;
+
+    int array_size = json_object_get_int(
+      json_object_array_get_idx(array_shape, 0)
+    );
+
+    /* Create a control for each array element */
+    for (int i = 0; i < array_size; i++) {
+      int err = create_output_control(
+        device,
+        NULL,
+        i,
+        member,
+        config_key,
+        control_config,
+        NULL
+      );
+      if (err < 0)
+        return err;
+    }
+  }
+
+  return 0;
+}
+
 int init_output_controls(struct fcp_device *device) {
   struct json_object *output_controls, *output_link;
 
@@ -521,6 +578,10 @@ int init_output_controls(struct fcp_device *device) {
     output_controls,
     output_link
   );
+  if (err < 0)
+    return err;
+
+  err = create_global_output_array_controls(device, members, output_controls);
   if (err < 0)
     return err;
 

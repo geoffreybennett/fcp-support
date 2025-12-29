@@ -25,6 +25,10 @@
       "name": "Line In %d Autogain Capture Switch",
       "type": "bool"
     },
+    "mute": {
+      "name": "Line In %d Mute Capture Switch",
+      "type": "bool"
+    },
     "auto-gain-exit-status": {
       "name": "Line In %d Autogain Status Capture Enum",
       "type": "enum",
@@ -76,6 +80,10 @@
       "max": 0,
       "db-min": -127,
       "db-max": 0
+    },
+    "mute": {
+      "name": "Line %d Mute Playback Switch",
+      "type": "bool"
     },
     "outputGroupMain.map": {
       "name": "Main Group Output %d Playback Switch",

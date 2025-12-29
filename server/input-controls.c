@@ -211,6 +211,62 @@ static int create_input_controls(
   return 0;
 }
 
+/* Create controls for array-based global input members like inputMutes */
+static int create_global_input_array_controls(
+  struct fcp_device  *device,
+  struct json_object *members,
+  struct json_object *input_controls
+) {
+  /* List of global array members and their config keys */
+  static const struct {
+    const char *member_name;
+    const char *config_key;
+  } global_arrays[] = {
+    { "inputMutes", "mute" },
+    { NULL, NULL }
+  };
+
+  for (int g = 0; global_arrays[g].member_name; g++) {
+    const char *member_name = global_arrays[g].member_name;
+    const char *config_key = global_arrays[g].config_key;
+
+    /* Check if this member exists in the device map */
+    struct json_object *member;
+    if (!json_object_object_get_ex(members, member_name, &member))
+      continue;
+
+    /* Check if we have config for this control type */
+    struct json_object *control_config;
+    if (!json_object_object_get_ex(input_controls, config_key, &control_config))
+      continue;
+
+    /* Get array size */
+    struct json_object *array_shape;
+    if (!json_object_object_get_ex(member, "array-shape", &array_shape))
+      continue;
+
+    int array_size = json_object_get_int(
+      json_object_array_get_idx(array_shape, 0)
+    );
+
+    /* Create a control for each array element */
+    for (int i = 0; i < array_size; i++) {
+      int err = create_input_control(
+        device,
+        NULL,
+        i,
+        member,
+        config_key,
+        control_config
+      );
+      if (err < 0)
+        return err;
+    }
+  }
+
+  return 0;
+}
+
 int init_input_controls(struct fcp_device *device) {
   struct json_object *input_controls;
 
@@ -237,5 +293,9 @@ int init_input_controls(struct fcp_device *device) {
     return -1;
   }
 
-  return create_input_controls(device, inputs, members, input_controls);
+  int err = create_input_controls(device, inputs, members, input_controls);
+  if (err < 0)
+    return err;
+
+  return create_global_input_array_controls(device, members, input_controls);
 }
