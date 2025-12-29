@@ -493,7 +493,7 @@ void add_mux_controls(struct fcp_device *device) {
 
       char *control_name;
       if (!strncmp(alsa_name, "PCM", 3) ||
-          !strncmp(alsa_name, "Mixer", 3)) {
+          !strncmp(alsa_name, "Mixer", 5)) {
         if (asprintf(&control_name, "%s Capture Enum", alsa_name) < 0) {
           log_error("Cannot allocate memory for control name");
           return;
@@ -518,4 +518,3 @@ void add_mux_controls(struct fcp_device *device) {
     }
   }
 }
-
