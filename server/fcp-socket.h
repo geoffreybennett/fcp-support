@@ -12,3 +12,4 @@ void fcp_socket_update_sets(fd_set *rfds, int *max_fd);
 void fcp_socket_handle_events(fd_set *rfds);
 
 void send_progress(int client_fd, uint8_t percent);
+void drain_pending_connections(void);

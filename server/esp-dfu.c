@@ -498,6 +498,8 @@ int handle_esp_firmware_update(
       last_progress = progress;
       send_progress(client_fd, progress);
     }
+
+    drain_pending_connections();
   }
 
   // Send final empty write to complete

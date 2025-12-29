@@ -65,6 +65,22 @@ static void cleanup_client(void) {
   client.total_size = 0;
 }
 
+// Reject any pending connections in the accept queue. Call this
+// periodically during long-running operations to prevent new clients
+// from blocking.
+void drain_pending_connections(void) {
+  if (server_sock < 0)
+    return;
+
+  while (1) {
+    int tmp_fd = accept(server_sock, NULL, NULL);
+    if (tmp_fd < 0)
+      break;
+    log_debug("Rejected additional client connection");
+    close(tmp_fd);
+  }
+}
+
 static void send_response(int client_fd, uint8_t response_type, const void *payload, size_t payload_length) {
   int ret;
   struct fcp_socket_msg_header header = {
@@ -224,6 +240,8 @@ static int erase_flash_segment(int client_fd, int segment_num, int num_blocks) {
 
     // wait 50ms
     usleep(50000);
+
+    drain_pending_connections();
   }
 
   if (last_progress != 100)
@@ -341,6 +359,8 @@ static int handle_app_firmware_update(
       send_progress(client_fd, progress);
       last_progress = progress;
     }
+
+    drain_pending_connections();
   }
 
   if (last_progress != 100)
@@ -655,16 +675,7 @@ void fcp_socket_handle_events(fd_set *rfds) {
         }
       }
     } else {
-
-      // Drain the accept queue if we already have a client
-      int tmp_fd = accept(server_sock, NULL, NULL);
-
-      if (tmp_fd < 0) {
-        log_error("Queue drain accept failed: %s", strerror(errno));
-      } else {
-        log_debug("Rejected additional client connection");
-        close(tmp_fd);
-      }
+      drain_pending_connections();
     }
   }
 
