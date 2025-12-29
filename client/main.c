@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <dirent.h>
+#include <endian.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <openssl/sha.h>
@@ -26,6 +27,8 @@
 
 // System-wide firmware directory
 #define SYSTEM_FIRMWARE_DIR "/usr/lib/firmware/scarlett4"
+
+#include "data-cmd.h"
 
 #define GITHUB_URL "https://github.com/geoffreybennett"
 #define FCP_DRIVER_URL  GITHUB_URL "/linux-fcp"
@@ -56,6 +59,14 @@ struct sound_card *selected_card = NULL;
 const char *selected_firmware_file = NULL;
 struct firmware_container *selected_firmware = NULL;
 char *card_serial = NULL;
+
+// Additional command arguments
+int cmd_argc = 0;
+char **cmd_argv = NULL;
+
+// Data response storage
+void *data_response = NULL;
+size_t data_response_size = 0;
 
 static int showing_progress = false;
 
@@ -381,6 +392,15 @@ static int handle_server_message(int sock_fd, bool quiet) {
     case FCP_SOCKET_RESPONSE_SUCCESS:
       if (!quiet)
         handle_success_message();
+      result = 0;
+      break;
+
+    case FCP_SOCKET_RESPONSE_DATA:
+      // Store data for caller to retrieve
+      free(data_response);
+      data_response = payload;
+      data_response_size = header.payload_length;
+      payload = NULL;  // Prevent free below
       result = 0;
       break;
 
@@ -1077,6 +1097,43 @@ static int update(void) {
   return 0;
 }
 
+// Data Command
+
+int send_fcp_cmd(uint32_t opcode, const void *req_data, size_t req_size, size_t resp_size) {
+  int sock_fd = selected_card->socket_fd;
+
+  size_t payload_size = sizeof(struct fcp_cmd_request) + req_size;
+  size_t total_size = sizeof(struct fcp_socket_msg_header) + payload_size;
+
+  uint8_t *buf = malloc(total_size);
+  if (!buf) {
+    fprintf(stderr, "Failed to allocate request buffer\n");
+    return -1;
+  }
+
+  struct fcp_socket_msg_header *header = (struct fcp_socket_msg_header *)buf;
+  struct fcp_cmd_request *req = (struct fcp_cmd_request *)(header + 1);
+
+  header->magic = FCP_SOCKET_MAGIC_REQUEST;
+  header->msg_type = FCP_SOCKET_REQUEST_FCP_CMD;
+  header->payload_length = payload_size;
+
+  req->opcode = opcode;
+  req->resp_size = resp_size;
+
+  if (req_data && req_size > 0)
+    memcpy(req->req_data, req_data, req_size);
+
+  if (write(sock_fd, buf, total_size) != (ssize_t)total_size) {
+    perror("Error sending FCP command");
+    free(buf);
+    return -1;
+  }
+
+  free(buf);
+  return handle_server_responses(sock_fd, true);
+}
+
 // Main Helper Functions
 
 static void short_help(void) {
@@ -1194,6 +1251,11 @@ static void parse_args(int argc, char *argv[]) {
     } else if (!command) {
       command = arg;
 
+      // Collect remaining arguments for the command
+      cmd_argc = argc - i - 1;
+      cmd_argv = &argv[i + 1];
+      break;
+
     } else {
       fprintf(stderr, "Error: multiple commands specified\n");
       short_help();
@@ -1221,6 +1283,7 @@ static struct command commands[] = {
   { "list",            list_cards,      true,  false, true,  false },
   { "list-all",        list_all,        true,  false, true,  false },
   { "update",          update,          true,  true,  true,  true  },
+  { "data",            data_cmd,        true,  true,  false, false },
   { 0 }
 };
 

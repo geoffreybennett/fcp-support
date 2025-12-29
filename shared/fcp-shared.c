@@ -15,5 +15,6 @@ const char *fcp_socket_error_messages[] = {
   "Read error",
   "Write error",
   "Not running leapfrog firmware",
-  "Invalid state"
+  "Invalid state",
+  "Debug mode disabled (set FCP_DEBUG=1)"
 };

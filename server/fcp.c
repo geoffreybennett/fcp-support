@@ -123,7 +123,7 @@ void fcp_init(snd_hwdep_t *hwdep) {
   log_debug("Firmware version: %d", firmware_version);
 }
 
-static int fcp_cmd(
+int fcp_cmd(
   snd_hwdep_t *hwdep,
   uint32_t     opcode,
   const void  *req,

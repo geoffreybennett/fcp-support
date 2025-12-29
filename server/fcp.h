@@ -22,6 +22,14 @@
 #define FCP_FLASH_SEGMENT_SIZE 0x10000
 
 /* FCP commands */
+int fcp_cmd(
+  snd_hwdep_t *hwdep,
+  uint32_t     opcode,
+  const void  *req,
+  size_t       req_size,
+  void        *resp,
+  size_t       resp_size
+);
 void fcp_init(snd_hwdep_t *hwdep);
 int fcp_cap_read(snd_hwdep_t *hwdep, int opcode_category);
 int fcp_reboot(snd_hwdep_t *hwdep);

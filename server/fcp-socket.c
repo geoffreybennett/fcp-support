@@ -369,6 +369,68 @@ static int handle_app_firmware_update(
   return 0;
 }
 
+static void log_hex(const char *prefix, const void *data, size_t size) {
+  char buf[256];
+  char *p = buf;
+  size_t max_bytes = (sizeof(buf) - strlen(prefix) - 10) / 3;
+
+  p += sprintf(p, "%s", prefix);
+  for (size_t i = 0; i < size && i < max_bytes; i++)
+    p += sprintf(p, " %02x", ((const uint8_t *)data)[i]);
+  if (size > max_bytes)
+    p += sprintf(p, " ...");
+
+  log_info("%s", buf);
+}
+
+static int handle_fcp_cmd(
+  int client_fd,
+  const struct fcp_socket_msg_header *header
+) {
+  if (!getenv("FCP_DEBUG")) {
+    return FCP_SOCKET_ERR_DEBUG_DISABLED;
+  }
+
+  struct fcp_cmd_request *req = (struct fcp_cmd_request *)(header + 1);
+  size_t req_data_size = header->payload_length - sizeof(struct fcp_cmd_request);
+
+  log_info("fcp_cmd: opcode=0x%06x req_size=%zu resp_size=%u",
+           req->opcode, req_data_size, req->resp_size);
+  if (req_data_size > 0)
+    log_hex("  req:", req->req_data, req_data_size);
+
+  void *resp_buf = NULL;
+  if (req->resp_size > 0) {
+    resp_buf = malloc(req->resp_size);
+    if (!resp_buf) {
+      log_error("Cannot allocate response buffer");
+      return FCP_SOCKET_ERR_FCP;
+    }
+  }
+
+  int ret = fcp_cmd(
+    device->hwdep,
+    req->opcode,
+    req->req_data,
+    req_data_size,
+    resp_buf,
+    req->resp_size
+  );
+
+  if (ret < 0) {
+    log_error("fcp_cmd failed: %s", snd_strerror(ret));
+    free(resp_buf);
+    return FCP_SOCKET_ERR_FCP;
+  }
+
+  if (req->resp_size > 0)
+    log_hex("  resp:", resp_buf, req->resp_size);
+
+  send_response(client_fd, FCP_SOCKET_RESPONSE_DATA, resp_buf, req->resp_size);
+  free(resp_buf);
+  return 0;
+}
+
 static void handle_client_command(
   int client_fd,
   const struct fcp_socket_msg_header *header
@@ -377,6 +439,7 @@ static void handle_client_command(
 
   switch (header->msg_type) {
     case FCP_SOCKET_REQUEST_REBOOT:
+      log_debug("Reboot requested");
       ret = fcp_reboot(device->hwdep);
       break;
 
@@ -394,6 +457,12 @@ static void handle_client_command(
 
     case FCP_SOCKET_REQUEST_ESP_FIRMWARE_UPDATE:
       ret = handle_esp_firmware_update(device, client_fd, header);
+      break;
+
+    case FCP_SOCKET_REQUEST_FCP_CMD:
+      ret = handle_fcp_cmd(client_fd, header);
+      if (ret == 0)
+        return;  // Response already sent
       break;
 
     default:

@@ -18,7 +18,8 @@
 #define FCP_SOCKET_ERR_WRITE           10
 #define FCP_SOCKET_ERR_NOT_LEAPFROG    11
 #define FCP_SOCKET_ERR_INVALID_STATE   12
-#define FCP_SOCKET_ERR_MAX             12
+#define FCP_SOCKET_ERR_DEBUG_DISABLED  13
+#define FCP_SOCKET_ERR_MAX             13
 
 // Protocol constants
 #define FCP_SOCKET_PROTOCOL_VERSION 1
@@ -34,12 +35,14 @@
 #define FCP_SOCKET_REQUEST_APP_FIRMWARE_ERASE   0x0003
 #define FCP_SOCKET_REQUEST_APP_FIRMWARE_UPDATE  0x0004
 #define FCP_SOCKET_REQUEST_ESP_FIRMWARE_UPDATE  0x0005
+#define FCP_SOCKET_REQUEST_FCP_CMD              0x0006
 
 // Response types
 #define FCP_SOCKET_RESPONSE_VERSION  0x00
 #define FCP_SOCKET_RESPONSE_SUCCESS  0x01
 #define FCP_SOCKET_RESPONSE_ERROR    0x02
 #define FCP_SOCKET_RESPONSE_PROGRESS 0x03
+#define FCP_SOCKET_RESPONSE_DATA     0x04
 
 extern const char *fcp_socket_error_messages[];
 
@@ -76,5 +79,10 @@ struct error_msg {
   int16_t                      error_code;
 };
 
-#pragma pack(pop)
+struct fcp_cmd_request {
+  uint32_t opcode;
+  uint32_t resp_size;
+  uint8_t  req_data[];
+};
 
+#pragma pack(pop)
