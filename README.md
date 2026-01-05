@@ -64,9 +64,11 @@ Log out and back in for the group membership change to take effect.
 
 ### Installation
 
-1. Build and install:
+1. Download, build and install:
 
 ```bash
+git clone https://github.com/geoffreybennett/fcp-support.git
+cd fcp-support
 make
 sudo make install
 ```
