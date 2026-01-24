@@ -16,15 +16,16 @@ FCP support in Linux consists of several components that work together:
    - Communicates with the device via the kernel driver
    - Creates ALSA controls and transfers control changes to and from
      the device
-   - Allows `fcp-tool` to update the device firmware, reset the device
-     configuration, and reboot the device
+   - Allows `alsa-scarlett-gui` and `fcp-tool` to update the
+     device firmware, reset the configuration, and reboot
 
 3. **Firmware Update Tool** (this repo: `fcp-tool`)
    - CLI utility for updating device firmware
    - Uploads firmware to the device via `fcp-server`
 
 4. **GUI Application** ([alsa-scarlett-gui](https://github.com/geoffreybennett/alsa-scarlett-gui))
-   - Provides a graphical interface for device control
+   - Provides a graphical interface for device control and
+     firmware updates
    - Uses the ALSA controls created by `fcp-server`
 
 ## Supported Devices
@@ -41,7 +42,8 @@ Vocaster devices.
 
 ## Prerequisites
 
-1. The FCP kernel driver must be installed.
+1. Linux kernel 6.14 or later (the FCP kernel driver is included
+   from this version). Check with `uname -r`.
 
 2. Required packages for building:
 
@@ -64,6 +66,12 @@ sudo usermod -a -G audio $USER
 Log out and back in for the group membership change to take effect.
 
 ### Installation
+
+RPM and deb packages are available from the
+[GitHub Releases](https://github.com/geoffreybennett/fcp-support/releases)
+page.
+
+Alternatively, build from source:
 
 1. Download, build and install:
 
@@ -120,7 +128,9 @@ The installation process sets up:
 
 ### Firmware Management
 
-`fcp-tool` provides the following capabilities:
+`alsa-scarlett-gui` will prompt you to update the firmware
+automatically when a newer version is available. `fcp-tool`
+provides equivalent command-line capabilities:
 
 ```bash
 # View all commands

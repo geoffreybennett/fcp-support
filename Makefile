@@ -5,9 +5,14 @@
 # http://make.mad-scientist.net/papers/advanced-auto-dependency-generation/
 
 VERSION := $(shell \
-  git describe --abbrev=4 --dirty --always --tags 2>/dev/null || \
+  git describe --abbrev=4 --dirty --always --tags 2>/dev/null | sed 's/-rc/~rc/g; s/-/./g' || \
   echo $${APP_VERSION:-Unknown} \
 )
+
+NAME := fcp-support
+SPEC_FILE := $(NAME).spec
+TAR_DIR := $(NAME)-$(VERSION)
+TAR_FILE := $(TAR_DIR).tar.gz
 
 # Installation paths
 ifeq ($(PREFIX),)
@@ -23,9 +28,12 @@ DATADIR := $(DESTDIR)$(DATADIR_PATH)
 DEPDIR := .deps
 DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$(*D)/$(*F).d
 
-CFLAGS := -Wall -Werror -ggdb -fno-omit-frame-pointer -O2 -D_FORTIFY_SOURCE=2
+CFLAGS ?= -ggdb -fno-omit-frame-pointer -fPIE -O2
+CFLAGS += -Wall -Werror
+CFLAGS += -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3
 CFLAGS += -DVERSION=\"$(VERSION)\"
 CFLAGS += -DDATADIR=\"$(DATADIR_PATH)\"
+CFLAGS += -Wno-error=deprecated-declarations
 
 PKG_CONFIG=pkg-config
 
@@ -35,7 +43,7 @@ LDFLAGS += $(shell $(PKG_CONFIG) --libs alsa)
 LDFLAGS += $(shell $(PKG_CONFIG) --libs libcrypto)
 LDFLAGS += $(shell $(PKG_CONFIG) --libs zlib)
 LDFLAGS += $(shell $(PKG_CONFIG) --libs json-c)
-LDFLAGS += -lm
+LDFLAGS += -lm -pie
 
 SERVER_CFLAGS := $(shell $(PKG_CONFIG) --cflags libsystemd)
 SERVER_LDFLAGS := $(shell $(PKG_CONFIG) --libs libsystemd)
@@ -128,6 +136,36 @@ uninstall:
 	rm -f $(UDEV_DIR)/99-fcp.rules
 	rm -rf $(DATADIR)
 
+tar: all
+	mkdir -p $(TAR_DIR)
+	sed 's_VERSION$$_$(VERSION)_' < $(SPEC_FILE).template > $(TAR_DIR)/$(SPEC_FILE)
+	cp -r client server shared data systemd udev \
+	      debian COPYING README.md Makefile fcp-support.install $(TAR_DIR)/
+	tar czf $(TAR_FILE) $(TAR_DIR)
+	rm -rf $(TAR_DIR)
+
+rpm: tar
+	rpmbuild -ta $(TAR_FILE)
+
+deb: all
+	mkdir -p deb-build/DEBIAN \
+	         deb-build/usr/bin \
+	         deb-build/usr/lib/systemd/system \
+	         deb-build/usr/lib/udev/rules.d \
+	         deb-build/usr/share/fcp-server \
+	         deb-build/usr/share/doc/$(NAME)
+	cp fcp-tool fcp-server deb-build/usr/bin/
+	cp systemd/fcp-server@.service deb-build/usr/lib/systemd/system/
+	cp udev/99-fcp.rules deb-build/usr/lib/udev/rules.d/
+	cp data/fcp-alsa-map-*.json deb-build/usr/share/fcp-server/
+	cp debian/copyright deb-build/usr/share/doc/$(NAME)/
+	sed "s/VERSION/$(VERSION)/g" debian/control > deb-build/DEBIAN/control
+	dpkg-deb --root-owner-group --build deb-build $(NAME)_$(VERSION)_$$(dpkg --print-architecture).deb
+	rm -rf deb-build
+
+arch:
+	sed 's/VERSION/$(VERSION)/g' PKGBUILD.template > PKGBUILD
+
 help:
 	@echo "fcp-support"
 	@echo
@@ -137,5 +175,9 @@ help:
 	@echo "  make uninstall - uninstall everything"
 	@echo "  make clean     - remove build files"
 	@echo "  make depclean  - remove dependency files"
+	@echo "  make tar       - create tarball"
+	@echo "  make rpm       - build RPM package"
+	@echo "  make deb       - build deb package"
+	@echo "  make arch      - generate PKGBUILD for Arch Linux"
 
-.PHONY: all clean depclean install uninstall help install-bin install-service install-rules install-data
+.PHONY: all clean depclean install uninstall help install-bin install-service install-rules install-data tar rpm deb arch

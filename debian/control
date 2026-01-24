@@ -1,0 +1,8 @@
+Package: fcp-support
+Version: VERSION
+Section: sound
+Priority: optional
+Architecture: amd64
+Depends: libasound2, libssl3, zlib1g, libjson-c5, libsystemd0
+Maintainer: Geoffrey D. Bennett <g@b4.vu>
+Description: FCP (Focusrite Control Protocol) Support Tools for Scarlett 4th Gen 16i16/18i16/18i20

@@ -1,0 +1,64 @@
+Name:           fcp-support
+Version:        VERSION
+Release:        1%{?dist}
+Summary:        FCP (Focusrite Control Protocol) Support Tools
+
+License:        GPLv3+
+URL:            https://github.com/geoffreybennett/fcp-support
+Source0:        %{name}-%{version}.tar.gz
+
+BuildRequires:  make
+BuildRequires:  gcc
+BuildRequires:  pkgconfig(alsa)
+BuildRequires:  pkgconfig(libcrypto)
+BuildRequires:  pkgconfig(zlib)
+BuildRequires:  pkgconfig(json-c)
+BuildRequires:  pkgconfig(libsystemd)
+BuildRequires:  systemd-rpm-macros
+
+Requires:       alsa-lib
+
+%description
+FCP (Focusrite Control Protocol) Support Tools provides user-space
+components for Focusrite USB audio interfaces using the Linux FCP
+driver, currently the 4th Gen Scarlett 16i16, 18i16, 18i20 interfaces.
+
+The package includes a user-space server that communicates with
+devices via the kernel driver, creates ALSA controls, and manages
+device configuration. It also provides a command-line tool for
+firmware updates and device maintenance operations.
+
+Requires the Linux FCP kernel driver. Install alsa-scarlett-gui as
+well for graphical device control.
+
+%prep
+%setup -q
+
+%build
+%make_build VERSION=%{version} PREFIX=%{_prefix}
+
+%install
+%make_install PREFIX=%{_prefix}
+
+%files
+%license COPYING
+%doc README.md
+%{_bindir}/fcp-tool
+%{_bindir}/fcp-server
+%{_prefix}/lib/systemd/system/fcp-server@.service
+%{_prefix}/lib/udev/rules.d/99-fcp.rules
+%{_datadir}/fcp-server/fcp-alsa-map-*.json
+
+%post
+%systemd_post fcp-server@.service
+/bin/udevadm control --reload-rules || :
+
+%preun
+%systemd_preun fcp-server@.service
+
+%postun
+%systemd_postun_with_restart fcp-server@.service
+
+%changelog
+* Mon Jan 26 2026 Geoffrey D. Bennett <g@b4.vu> - 1.0~rc1-1
+- Initial 1.0 release candidate
