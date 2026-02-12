@@ -1,0 +1,5 @@
+usr/bin/fcp-tool
+usr/bin/fcp-server
+usr/lib/systemd/system/fcp-server@.service
+usr/lib/udev/rules.d/99-fcp.rules
+usr/share/fcp-server/*
