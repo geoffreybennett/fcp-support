@@ -201,19 +201,23 @@ struct sound_card **enum_cards(int *count, bool quiet) {
     if (!get_usb_id(card_name, &vid, &pid))
       goto next;
 
+    struct supported_device *dev = get_supported_device_by_pid(pid);
+    if (!dev)
+      goto next;
+
     char *serial = get_device_serial(card_num);
 
     if (!serial) {
-      fprintf(stderr, "Failed to get device serial number\n");
-      return NULL;
+      fprintf(
+        stderr,
+        "Warning: can't get serial for card %d; skipping\n",
+        card_num
+      );
+      goto next;
     }
 
     char alsa_name[32];
     snprintf(alsa_name, sizeof(alsa_name), "hw:%d", card_num);
-
-    struct supported_device *dev = get_supported_device_by_pid(pid);
-    if (!dev)
-      goto next;
 
     if (snd_ctl_open(&ctl, alsa_name, 0) < 0) {
       fprintf(
