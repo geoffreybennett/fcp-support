@@ -12,7 +12,7 @@ static int get_usbbus(int card_num, int *bus, int *dev) {
   snprintf(path, 256, "/proc/asound/card%d/usbbus", card_num);
   FILE *f = fopen(path, "r");
   if (!f) {
-    fprintf(stderr, "can't open %s\n", path);
+    fprintf(stderr, "can't open %s: %s\n", path, strerror(errno));
     return 0;
   }
 
@@ -116,7 +116,7 @@ char *get_device_serial(int card_num) {
 
   FILE *f = fopen(serial_path, "r");
   if (!f) {
-    fprintf(stderr, "can't open %s\n", serial_path);
+    fprintf(stderr, "can't open %s: %s\n", serial_path, strerror(errno));
     return NULL;
   }
 
