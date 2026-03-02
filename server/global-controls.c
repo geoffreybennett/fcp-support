@@ -21,7 +21,7 @@ static int parse_component_path(
   int         *offset_adjust,
   int         *width
 ) {
-  char *colon1 = strchr(component_spec, ':');
+  const char *colon1 = strchr(component_spec, ':');
 
   if (!colon1) {
     *path = strdup(component_spec);
@@ -30,7 +30,7 @@ static int parse_component_path(
     return 0;
   }
 
-  char *colon2 = strchr(colon1 + 1, ':');
+  const char *colon2 = strchr(colon1 + 1, ':');
   if (!colon2) {
     log_error("Invalid component spec: %s", component_spec);
     return -1;
