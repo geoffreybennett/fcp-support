@@ -8,7 +8,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <syslog.h>
+
+#ifdef HAVE_SYSTEMD
 #include <systemd/sd-journal.h>
+#endif
 
 #include "log.h"
 
@@ -53,6 +57,7 @@ void log_msg(log_level_t level, const char *fmt, ...) {
     char buf[1024];
     vsnprintf(buf, sizeof(buf), fmt, args);
 
+#ifdef HAVE_SYSTEMD
     int priority = LOG_INFO;
     switch (level) {
       case LOG_LEVEL_ERROR: priority = LOG_ERR; break;
@@ -62,6 +67,7 @@ void log_msg(log_level_t level, const char *fmt, ...) {
     }
 
     sd_journal_print(priority, "%s", buf);
+#endif
   } else {
     FILE *out = level <= LOG_LEVEL_WARNING ? stderr : stdout;
     vfprintf(out, fmt, args);
