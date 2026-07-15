@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024-2025 Geoffrey D. Bennett <g@b4.vu>
+// SPDX-FileCopyrightText: 2024-2026 Geoffrey D. Bennett <g@b4.vu>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #define _GNU_SOURCE
@@ -78,7 +78,13 @@ struct command {
   bool requires_card_selection;
   bool requires_firmwares;
   bool requires_firmware_selection;
+
+  // command takes its remaining arguments verbatim, so option
+  // parsing stops at the command word
+  bool raw_args;
 };
+
+static struct command *find_command(const char *name);
 
 // Firmware Helper Functions
 
@@ -1251,10 +1257,15 @@ static void parse_args(int argc, char *argv[]) {
     } else if (!command) {
       command = arg;
 
-      // Collect remaining arguments for the command
-      cmd_argc = argc - i - 1;
-      cmd_argv = &argv[i + 1];
-      break;
+      // Unknown commands are reported later; raw-args commands take
+      // the rest of the command line verbatim. For other commands,
+      // keep parsing so options may follow the command word.
+      struct command *cmd = find_command(command);
+      if (!cmd || cmd->raw_args) {
+        cmd_argc = argc - i - 1;
+        cmd_argv = &argv[i + 1];
+        break;
+      }
 
     } else {
       fprintf(stderr, "Error: multiple commands specified\n");
@@ -1272,18 +1283,18 @@ static void parse_args(int argc, char *argv[]) {
 // Main
 
 static struct command commands[] = {
-  { "help",            usage,           false, false, false, false },
-  { "about",           about,           false, false, false, false },
-  { "reboot",          reboot,          true,  true,  false, false },
-  { "erase-config",    erase_config,    true,  true,  false, false },
-  { "erase-app",       erase_app,       true,  true,  false, false },
-  { "upload-leapfrog", upload_leapfrog, true,  true,  true,  true  },
-  { "upload-esp",      upload_esp,      true,  true,  true,  true  },
-  { "upload-app",      upload_app,      true,  true,  true,  true  },
-  { "list",            list_cards,      true,  false, true,  false },
-  { "list-all",        list_all,        true,  false, true,  false },
-  { "update",          update,          true,  true,  true,  true  },
-  { "data",            data_cmd,        true,  true,  false, false },
+  { "help",            usage,           false, false, false, false, false },
+  { "about",           about,           false, false, false, false, false },
+  { "reboot",          reboot,          true,  true,  false, false, false },
+  { "erase-config",    erase_config,    true,  true,  false, false, false },
+  { "erase-app",       erase_app,       true,  true,  false, false, false },
+  { "upload-leapfrog", upload_leapfrog, true,  true,  true,  true,  false },
+  { "upload-esp",      upload_esp,      true,  true,  true,  true,  false },
+  { "upload-app",      upload_app,      true,  true,  true,  true,  false },
+  { "list",            list_cards,      true,  false, true,  false, false },
+  { "list-all",        list_all,        true,  false, true,  false, false },
+  { "update",          update,          true,  true,  true,  true,  false },
+  { "data",            data_cmd,        true,  true,  false, false, true  },
   { 0 }
 };
 
