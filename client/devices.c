@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Geoffrey D. Bennett <g@b4.vu>
+// SPDX-FileCopyrightText: 2024-2026 Geoffrey D. Bennett <g@b4.vu>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <stdio.h>
@@ -10,6 +10,7 @@ struct supported_device supported_devices[] = {
   { 0x821b, "Scarlett 4th Gen 16i16" },
   { 0x821c, "Scarlett 4th Gen 18i16" },
   { 0x821d, "Scarlett 4th Gen 18i20" },
+  { 0x821e, "ISA C8X" },
   { 0 },
 };
 
