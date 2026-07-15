@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Geoffrey D. Bennett <g@b4.vu>
+// SPDX-FileCopyrightText: 2024-2026 Geoffrey D. Bennett <g@b4.vu>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <stdio.h>
@@ -122,6 +122,26 @@ int devmap_type_to_data_type(const char *type) {
 
   log_error("Unhandled data type %s", type);
   exit(1);
+}
+
+/* Convert a devmap member type to a data type, resolving enum-typed
+ * members through the devmap enums table to their underlying type
+ * (uint8 if the enum does not specify one) */
+int devmap_member_type_to_data_type(
+  struct fcp_device *device,
+  const char        *type
+) {
+  struct json_object *enums, *enum_def, *underlying;
+
+  if (json_object_object_get_ex(device->devmap, "enums", &enums) &&
+      json_object_object_get_ex(enums, type, &enum_def)) {
+    if (json_object_object_get_ex(enum_def, "type", &underlying))
+      type = json_object_get_string(underlying);
+    else
+      type = "uint8";
+  }
+
+  return devmap_type_to_data_type(type);
 }
 
 /* Convert a devmap type to a data type, overriding the width */

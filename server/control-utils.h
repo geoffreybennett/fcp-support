@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Geoffrey D. Bennett <g@b4.vu>
+// SPDX-FileCopyrightText: 2024-2026 Geoffrey D. Bennett <g@b4.vu>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #pragma once
@@ -32,6 +32,10 @@ int write_bitmap_data_control(
 );
 
 int devmap_type_to_data_type(const char *type);
+int devmap_member_type_to_data_type(
+  struct fcp_device *device,
+  const char        *type
+);
 int devmap_type_to_data_type_with_width(const char *type, int width);
 
 int find_member_by_path(
