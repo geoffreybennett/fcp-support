@@ -3,17 +3,43 @@
 use strict;
 use warnings;
 
+sub find_focusrite_card {
+  open my $fh, '<', '/proc/asound/cards'
+    or die "Could not open /proc/asound/cards: $!";
+  my @cards;
+  my $card_num;
+  while (<$fh>) {
+    if (/^\s*(\d+)\s+\[/) {
+      $card_num = $1;
+    } elsif (/Focusrite/ && defined $card_num) {
+      push @cards, $card_num;
+    }
+  }
+  close $fh;
+  die "No Focusrite card found\n" unless @cards;
+  die "Multiple Focusrite cards found (@cards); " .
+    "specify one with -c <card>\n" if @cards > 1;
+  return $cards[0];
+}
+
+my $card;
+if (@ARGV >= 2 && $ARGV[0] eq '-c') {
+  (undef, $card) = splice(@ARGV, 0, 2);
+}
+
+die "Usage: $0 [-c card] filename" unless @ARGV == 1;
+my $filename = $ARGV[0];
+
+$card = find_focusrite_card() unless defined $card;
+
 sub get_version {
   my ($control) = @_;
-  my $output = `amixer -cGen cget 'iface=CARD,name=$control'`;
+  my $output = `amixer -c$card cget 'iface=CARD,name=$control'`;
   if ($output =~ /: values=(\d+),(\d+),(\d+),(\d+)/) {
     return [$1, $2, $3, $4];
   }
   return undef;
 }
-
-die "Usage: $0 filename" unless @ARGV == 1;
-my $filename = $ARGV[0];
 
 # Check for ESP control to determine if leapfrog
 my $esp_ver = get_version("ESP Firmware Version");
