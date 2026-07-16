@@ -208,6 +208,9 @@ int read_data_control(struct fcp_device *device, struct control_props *props, in
     if (err < 0)
       return err;
 
+    if (props->mask)
+      read_value &= props->mask;
+
     /* For enumerated controls with explicit values, map the value
      * back to the index
      */
@@ -274,6 +277,23 @@ int write_data_control(struct fcp_device *device, struct control_props *props, i
       return -1;
     }
     value = props->enum_values[value];
+  }
+
+  /* Masked controls only cover some bits of the member: read the
+   * current value and preserve the other bits
+   */
+  if (props->mask) {
+    int current;
+
+    int err = read_single_data_control(
+      device, props,
+      props->data_type, props->offset, props->array_index,
+      &current
+    );
+    if (err < 0)
+      return err;
+
+    value = (current & ~props->mask) | (value & props->mask);
   }
 
   if (props->data_type == DATA_TYPE_UINT8 ||

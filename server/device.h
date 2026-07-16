@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Geoffrey D. Bennett <g@b4.vu>
+// SPDX-FileCopyrightText: 2024-2026 Geoffrey D. Bennett <g@b4.vu>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #pragma once
@@ -61,6 +61,10 @@ struct control_props {
   char **enum_names;
   int   *enum_values;
   int    enum_count;
+
+  // if non-zero, the control covers only these bits of the member;
+  // other bits are preserved on write
+  unsigned int mask;
   int    read_only;
   int    notify_client;
   int    notify_device;

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Geoffrey D. Bennett <g@b4.vu>
+// SPDX-FileCopyrightText: 2024-2026 Geoffrey D. Bennett <g@b4.vu>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #define _GNU_SOURCE
@@ -263,6 +263,13 @@ static int create_global_control(
   props.notify_device = json_object_get_int(
     json_object_object_get(member, "notify-device")
   );
+
+  /* Optional bit mask: the control covers only these bits of the
+   * member; other bits are preserved on write
+   */
+  struct json_object *mask;
+  if (json_object_object_get_ex(control_config, "mask", &mask))
+    props.mask = json_object_get_int(mask);
 
   struct json_object *save;
   if (json_object_object_get_ex(control_config, "save", &save) &&
