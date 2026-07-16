@@ -159,16 +159,33 @@
       "db-max": 0
     },
     "outputGroupAlt.map": {
-      "name": "Alt Group Output %d Playback Switch",
+      "name": "Alt 1 Group Output %d Playback Switch",
       "type": "bool-bitmap"
     },
     "outputGroupAlt.sources": {
-      "name": "Alt Group Output %d Source Playback Enum",
+      "name": "Alt 1 Group Output %d Source Playback Enum",
       "type": "enum",
       "values-from": "output-group-sources"
     },
     "outputGroupAlt.trims": {
-      "name": "Alt Group Output %d Trim Playback Volume",
+      "name": "Alt 1 Group Output %d Trim Playback Volume",
+      "type": "int",
+      "min": -128,
+      "max": 0,
+      "db-min": -128,
+      "db-max": 0
+    },
+    "outputGroupAlt2.map": {
+      "name": "Alt 2 Group Output %d Playback Switch",
+      "type": "bool-bitmap"
+    },
+    "outputGroupAlt2.sources": {
+      "name": "Alt 2 Group Output %d Source Playback Enum",
+      "type": "enum",
+      "values-from": "output-group-sources"
+    },
+    "outputGroupAlt2.trims": {
+      "name": "Alt 2 Group Output %d Trim Playback Volume",
       "type": "int",
       "min": -128,
       "max": 0,
@@ -246,9 +263,15 @@
       "name": "Dim Playback Switch",
       "type": "bool"
     },
-    "altSwitch": {
-      "name": "Speaker Switching Alt Playback Switch",
-      "type": "bool"
+    "isaMonitorGroupConfig": {
+      "name": "Monitor Group Playback Enum",
+      "type": "enum",
+      "mask": 7,
+      "values": [
+        { "name": "Main",  "value": 1 },
+        { "name": "Alt 1", "value": 2 },
+        { "name": "Alt 2", "value": 4 }
+      ]
     },
     "talkbackEnable": {
       "name": "Talkback Enable Playback Switch",
