@@ -9,7 +9,7 @@ maintainer of fcp-server adding support for a new firmware version.
    BUS=$(lsusb -d1235: | grep -oP 'Bus 0*\K\d+')
    PID=$(lsusb -d1235: | grep -o 82..)
    NOW=$(date +%Y%m%d-%H%M%S)
-   usbmon -i $BUS -s 65536 -fu > scarlett4-$PID-$NOW.cap
+   sudo usbmon -i $BUS -s 65536 -fu > scarlett4-$PID-$NOW.cap
    ```
 
 2. **Run the update:** connect the device to the VM and start the
