@@ -367,10 +367,20 @@ void device_handle_notification(struct fcp_device *device, uint32_t notification
       }
 
       for (int j = 0; j < count; j++) {
-        int old_value = snd_ctl_elem_value_get_integer(alsa_value, j);
+        // Detect device-side changes by comparing against the cached
+        // value; the ALSA control value may reflect a client write
+        // that has not been serviced yet, so it cannot distinguish a
+        // device-side change from an in-flight client write
+        int old_value = props->component_count
+          ? snd_ctl_elem_value_get_integer(alsa_value, j)
+          : props->value;
+
         if (values[j] != old_value) {
           changed = true;
           snd_ctl_elem_value_set_integer(alsa_value, j, values[j]);
+
+          if (!props->component_count)
+            props->value = values[j];
 
           log_debug(
             "Control %s value changed at device from %d to %d",
