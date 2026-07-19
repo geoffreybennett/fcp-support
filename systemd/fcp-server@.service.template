@@ -4,10 +4,15 @@ BindsTo=dev-snd-controlC%i.device
 
 [Service]
 DynamicUser=yes
-RuntimeDirectoryMode=0770
 UMask=0007
 Group=audio
-RuntimeDirectory=fcp-server-%i
+# Directory created by tmpfiles.d/fcp-server.conf; a fixed path shared
+# by all instances so sandboxed clients can be granted access to it,
+# with a lifecycle independent of any one instance
+Environment=RUNTIME_DIRECTORY=/run/fcp-server
+# DynamicUser implies ProtectSystem=strict, so the socket directory
+# must be explicitly writable
+ReadWritePaths=/run/fcp-server
 Type=simple
 ExecStart=@PREFIX@/bin/fcp-server %i
 Restart=on-failure

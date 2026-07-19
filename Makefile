@@ -119,7 +119,10 @@ install-bin:
 
 install-service: systemd/fcp-server@.service
 	install -D -m 644 $< $(SYSTEMD_DIR)/fcp-server@.service
+	install -D -m 644 systemd/fcp-server.tmpfiles.conf \
+	  $(TMPFILES_DIR)/fcp-server.conf
 	@echo "Run 'sudo systemctl daemon-reload' to reload systemd"
+	@echo "Run 'sudo systemd-tmpfiles --create' to create /run/fcp-server"
 
 install-rules:
 	install -D -m 644 udev/99-fcp.rules $(UDEV_DIR)/99-fcp.rules
@@ -133,6 +136,7 @@ uninstall:
 	rm -f $(BINDIR)/fcp-tool
 	rm -f $(BINDIR)/fcp-server
 	rm -f $(SYSTEMD_DIR)/fcp-server@.service
+	rm -f $(TMPFILES_DIR)/fcp-server.conf
 	rm -f $(UDEV_DIR)/99-fcp.rules
 	rm -rf $(DATADIR)
 
