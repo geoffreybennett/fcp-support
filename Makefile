@@ -154,7 +154,12 @@ tar: all
 rpm: tar
 	rpmbuild -ta $(TAR_FILE)
 
-deb: all
+# The deb installs under /usr. PREFIX is baked into fcp-server
+# (DATADIR) and the generated service file, but make does not
+# rebuild when PREFIX changes, so a clean build is required.
+deb:
+	$(MAKE) clean
+	$(MAKE) PREFIX=/usr all
 	mkdir -p deb-build/DEBIAN \
 	         deb-build/usr/bin \
 	         deb-build/usr/lib/systemd/system \
