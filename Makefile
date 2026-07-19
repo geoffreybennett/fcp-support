@@ -20,6 +20,14 @@ ifeq ($(PREFIX),)
 endif
 
 BINDIR := $(DESTDIR)$(PREFIX)/bin
+
+# systemd-tmpfiles reads /usr/lib/tmpfiles.d and /etc/tmpfiles.d,
+# not /usr/local
+ifeq ($(PREFIX),/usr)
+  TMPFILES_DIR := $(DESTDIR)/usr/lib/tmpfiles.d
+else
+  TMPFILES_DIR := $(DESTDIR)/etc/tmpfiles.d
+endif
 SYSTEMD_DIR := $(DESTDIR)$(PREFIX)/lib/systemd/system
 UDEV_DIR := $(DESTDIR)$(PREFIX)/lib/udev/rules.d
 DATADIR_PATH := $(PREFIX)/share/fcp-server
@@ -163,15 +171,18 @@ deb:
 	mkdir -p deb-build/DEBIAN \
 	         deb-build/usr/bin \
 	         deb-build/usr/lib/systemd/system \
+	         deb-build/usr/lib/tmpfiles.d \
 	         deb-build/usr/lib/udev/rules.d \
 	         deb-build/usr/share/fcp-server \
 	         deb-build/usr/share/doc/$(NAME)
 	cp fcp-tool fcp-server deb-build/usr/bin/
 	cp systemd/fcp-server@.service deb-build/usr/lib/systemd/system/
+	cp systemd/fcp-server.tmpfiles.conf deb-build/usr/lib/tmpfiles.d/fcp-server.conf
 	cp udev/99-fcp.rules deb-build/usr/lib/udev/rules.d/
 	cp data/fcp-alsa-map-*.json deb-build/usr/share/fcp-server/
 	cp debian/copyright deb-build/usr/share/doc/$(NAME)/
 	sed "s/VERSION/$(VERSION)/g" debian/control > deb-build/DEBIAN/control
+	install -m 755 debian/postinst deb-build/DEBIAN/postinst
 	dpkg-deb --root-owner-group --build deb-build $(NAME)_$(VERSION)_$$(dpkg --print-architecture).deb
 	rm -rf deb-build
 

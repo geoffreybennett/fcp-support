@@ -46,11 +46,13 @@ well for graphical device control.
 %{_bindir}/fcp-tool
 %{_bindir}/fcp-server
 %{_prefix}/lib/systemd/system/fcp-server@.service
+%{_tmpfilesdir}/fcp-server.conf
 %{_prefix}/lib/udev/rules.d/99-fcp.rules
 %{_datadir}/fcp-server/fcp-alsa-map-*.json
 
 %post
 %systemd_post fcp-server@.service
+%tmpfiles_create fcp-server.conf
 /bin/udevadm control --reload-rules || :
 
 %preun

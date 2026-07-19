@@ -1,9 +1,8 @@
-post_install() {
+#!/bin/sh
+set -e
+
+if [ -d /run/systemd/system ]; then
   systemctl daemon-reload
   systemd-tmpfiles --create fcp-server.conf
   udevadm control --reload-rules
-}
-
-post_upgrade() {
-  post_install
-}
+fi
