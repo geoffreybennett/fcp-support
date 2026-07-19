@@ -20,6 +20,7 @@
 #include "mix.h"
 #include "mux.h"
 #include "meter.h"
+#include "server-version.h"
 #include "log.h"
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
@@ -283,6 +284,8 @@ int device_init_controls(struct fcp_device *device) {
   err = init_global_controls(device);
   if (err < 0)
     return err;
+
+  add_server_version_control(device);
 
   return 0;
 }
