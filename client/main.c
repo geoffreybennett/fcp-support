@@ -896,8 +896,19 @@ static int erase_and_upload(enum firmware_type type) {
   return send_firmware_of_type(type);
 }
 
+// The device runs the firmware it booted with, so anything written to
+// the App firmware area only takes effect after a reboot.
+static int erase_upload_and_reboot(enum firmware_type type) {
+  int result = erase_and_upload(type);
+
+  if (result != 0)
+    return result;
+
+  return reboot_and_wait();
+}
+
 static int upload_leapfrog(void) {
-  return erase_and_upload(FIRMWARE_LEAPFROG);
+  return erase_upload_and_reboot(FIRMWARE_LEAPFROG);
 }
 
 static int upload_esp(void) {
@@ -906,7 +917,7 @@ static int upload_esp(void) {
 }
 
 static int upload_app(void) {
-  return erase_and_upload(FIRMWARE_APP);
+  return erase_upload_and_reboot(FIRMWARE_APP);
 }
 
 static int list_cards(void) {
@@ -1089,15 +1100,12 @@ static int update(void) {
     if (fw->type == FIRMWARE_ESP && !need_esp)
       continue;
 
-    int result = erase_and_upload(fw->type);
+    int result = fw->type == FIRMWARE_ESP
+      ? erase_and_upload(fw->type)
+      : erase_upload_and_reboot(fw->type);
+
     if (result != 0)
       return result;
-
-    if (fw->type != FIRMWARE_ESP) {
-      result = reboot_and_wait();
-      if (result != 0)
-        return result;
-    }
   }
 
   return 0;

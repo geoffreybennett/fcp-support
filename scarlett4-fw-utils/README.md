@@ -1,8 +1,9 @@
 The files in this directory are tools to extract the firmware for
 Focusrite Scarlett 4th generation big devices (16i16, 18i16, and
-18i20) from a USB capture of the firmware update process performed by
-FC2. You don't need anything in this directory unless you are the
-maintainer of fcp-server adding support for a new firmware version.
+18i20) and ISA C8X from a USB capture of the firmware update process
+performed by FC2. You don't need anything in this directory unless you
+are the maintainer of fcp-server adding support for a new firmware
+version.
 
 1. **Start the capture** (before you connect the device to the VM):
    ```
@@ -32,17 +33,12 @@ maintainer of fcp-server adding support for a new firmware version.
    wrote scarlett4-1235-821b-unk.bin
    ```
 
-5. **Install the leapfrog firmware:**
+5. **Install the leapfrog firmware** (the device reboots into it):
    ```
    fcp-tool upload-leapfrog -f scarlett4-1235-$PID-unk.bin
    ```
 
-6. **Reboot** into the leapfrog firmware:
-   ```
-   fcp-tool reboot
-   ```
-
-7. **Get the leapfrog version** and update the firmware file:
+6. **Get the leapfrog version** and update the firmware file:
    ```
    scarlett4-ver-update scarlett4-1235-$PID-unk.bin
    ```
@@ -65,17 +61,17 @@ maintainer of fcp-server adding support for a new firmware version.
    Skipping section
    ```
 
-8. **Install the ESP firmware:**
+7. **Install the ESP firmware:**
    ```
    fcp-tool upload-esp -f scarlett4-1235-$PID-unk.bin
    ```
 
-9. **Install the app firmware:**
+8. **Install the app firmware** (the device reboots into it):
    ```
-   fcp-tool update -f scarlett4-1235-$PID-unk.bin
+   fcp-tool upload-app -f scarlett4-1235-$PID-unk.bin
    ```
 
-10. **Get the ESP and app versions** and update the firmware file:
+9. **Get the ESP and app versions** and update the firmware file:
    ```
    scarlett4-ver-update scarlett4-1235-$PID-unk.bin
    ```
@@ -99,9 +95,9 @@ maintainer of fcp-server adding support for a new firmware version.
    mv scarlett4-1235-821b-unk.bin scarlett4-1235-821b-2464.bin
    ```
 
-11. **Rename the file** as suggested.
+10. **Rename the file** as suggested.
 
-12. **Test it:** downgrade to a previous version, confirm that FC2
+11. **Test it:** downgrade to a previous version, confirm that FC2
     wants to update it (but don't let it), then upgrade to the
     extracted version using fcp-tool and confirm that FC2 now doesn't
     prompt to update it.
