@@ -195,6 +195,21 @@ static int read_single_data_control(
   );
 }
 
+/* Bring a value read from the device into what the ALSA control can
+ * hold. A device field can carry values the control was not declared
+ * for: autogainInProgress is a state code in a field the device map
+ * describes as a bool, and it reads 3 while autogain is running.
+ * snd_ctl_elem_write() rejects the whole control update when a value
+ * is out of range, leaving the control stale, so a boolean is reduced
+ * to set or clear here.
+ */
+static int value_for_control(struct control_props *props, int value) {
+  if (props->type != SND_CTL_ELEM_TYPE_BOOLEAN)
+    return value;
+
+  return !!value;
+}
+
 int read_data_control(struct fcp_device *device, struct control_props *props, int *value) {
   if (!props->component_count) {
     int read_value, err;
@@ -229,7 +244,7 @@ int read_data_control(struct fcp_device *device, struct control_props *props, in
       return -1;
     }
 
-    *value = read_value;
+    *value = value_for_control(props, read_value);
     return 0;
   }
 
@@ -244,6 +259,8 @@ int read_data_control(struct fcp_device *device, struct control_props *props, in
     );
     if (err < 0)
       return err;
+
+    value[i] = value_for_control(props, value[i]);
   }
 
   return 0;
