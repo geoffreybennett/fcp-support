@@ -401,11 +401,22 @@ void device_handle_notification(struct fcp_device *device, uint32_t notification
     // Update if changed
     err = snd_ctl_elem_write(device->ctl, alsa_value);
     if (err < 0) {
-      log_error(
-        "Failed to set value for %s: %s",
-        props->name,
-        snd_strerror(err)
-      );
+      if (props->type == SND_CTL_ELEM_TYPE_BYTES) {
+        log_error(
+          "Failed to set value for %s: %s",
+          props->name,
+          snd_strerror(err)
+        );
+      } else {
+        log_error(
+          "Failed to set value %d for %s (%d..%d): %s",
+          snd_ctl_elem_value_get_integer(alsa_value, 0),
+          props->name,
+          props->min,
+          props->max,
+          snd_strerror(err)
+        );
+      }
     }
   }
 }
