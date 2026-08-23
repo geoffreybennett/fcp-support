@@ -346,11 +346,26 @@ static void handle_success_message(void) {
   }
 }
 
-static int handle_server_message(int sock_fd, bool quiet) {
+// The device disconnects when it reboots, so the server closing or
+// resetting the socket is the expected end of a reboot request.
+static bool is_expected_disconnect(ssize_t n, bool allow_disconnect) {
+  return allow_disconnect && (n == 0 || errno == ECONNRESET);
+}
+
+static int handle_server_message(
+  int sock_fd,
+  bool quiet,
+  bool allow_disconnect
+) {
   struct fcp_socket_msg_header header;
   ssize_t n = read_exact(sock_fd, &header, sizeof(header));
 
   if (n <= 0) {
+    if (is_expected_disconnect(n, allow_disconnect)) {
+      if (!quiet)
+        handle_success_message();
+      return 0;
+    }
     if (n < 0) {
       perror("Error reading response header");
     }
@@ -374,6 +389,11 @@ static int handle_server_message(int sock_fd, bool quiet) {
     n = read_exact(sock_fd, payload, header.payload_length);
     if (n <= 0) {
       free(payload);
+      if (is_expected_disconnect(n, allow_disconnect)) {
+        if (!quiet)
+          handle_success_message();
+        return 0;
+      }
       if (n < 0) {
         perror("Error reading payload");
       }
@@ -419,7 +439,11 @@ static int handle_server_message(int sock_fd, bool quiet) {
   return result;
 }
 
-static int handle_server_responses(int sock_fd, bool quiet) {
+static int handle_server_responses(
+  int sock_fd,
+  bool quiet,
+  bool allow_disconnect
+) {
   fd_set rfds;
   struct timeval tv, last_progress, now;
   const int TIMEOUT_SECS = 15;
@@ -448,7 +472,7 @@ static int handle_server_responses(int sock_fd, bool quiet) {
       return -1;
     }
     if (ret > 0) {
-      ret = handle_server_message(sock_fd, quiet);
+      ret = handle_server_message(sock_fd, quiet, allow_disconnect);
 
       // Success or error
       if (ret <= 0)
@@ -461,6 +485,7 @@ static int handle_server_responses(int sock_fd, bool quiet) {
 }
 
 static int send_simple_command(uint8_t command, int quiet) {
+  bool allow_disconnect = command == FCP_SOCKET_REQUEST_REBOOT;
   int sock_fd = selected_card->socket_fd;
 
   struct fcp_socket_msg_header header = {
@@ -474,7 +499,7 @@ static int send_simple_command(uint8_t command, int quiet) {
     return -1;
   }
 
-  return handle_server_responses(sock_fd, quiet);
+  return handle_server_responses(sock_fd, quiet, allow_disconnect);
 }
 
 static int send_firmware(struct firmware *fw) {
@@ -524,7 +549,7 @@ static int send_firmware(struct firmware *fw) {
     return -1;
   }
 
-  return handle_server_responses(sock_fd, false);
+  return handle_server_responses(sock_fd, false, false);
 }
 
 static struct firmware* find_firmware_by_type(enum firmware_type type) {
@@ -1145,7 +1170,7 @@ int send_fcp_cmd(uint32_t opcode, const void *req_data, size_t req_size, size_t 
   }
 
   free(buf);
-  return handle_server_responses(sock_fd, true);
+  return handle_server_responses(sock_fd, true, false);
 }
 
 // Main Helper Functions
