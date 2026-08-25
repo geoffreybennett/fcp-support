@@ -38,17 +38,15 @@ static void get_usb_ids(int card_num, uint16_t *vid, uint16_t *pid) {
 
   f = fopen(proc_path, "r");
   if (!f) {
-    log_error("Cannot open USB ID file for card %d", card_num);
+    log_error("Card %d is not a USB audio device", card_num);
     exit(1);
   }
 
-  if (fread(usbid, 1, sizeof(usbid), f) != sizeof(usbid)) {
+  if (!fgets(usbid, sizeof(usbid), f)) {
     log_error("Cannot read USB ID for card %d from %s", card_num, proc_path);
     exit(1);
   }
   fclose(f);
-
-  usbid[9] = 0;  // Ensure null termination
 
   int scan_vid, scan_pid;
   if (sscanf(usbid, "%x:%x", &scan_vid, &scan_pid) != 2) {
