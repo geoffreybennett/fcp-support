@@ -1028,9 +1028,9 @@ static int list_all(void) {
       "Firmware files should be placed in:\n"
       "  %s\n\n"
       "Obtain firmware from:\n"
-      "  https://github.com/geoffreybennett/fcp-firmware\n",
-      "\n"
-      SYSTEM_FIRMWARE_DIR
+      "  %s\n",
+      SYSTEM_FIRMWARE_DIR,
+      FIRMWARE_URL
     );
   }
 

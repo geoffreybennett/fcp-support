@@ -1,3 +1,5 @@
+%global tag_version TAG_VERSION
+
 Name:           fcp-support
 Version:        VERSION
 Release:        1%{?dist}
@@ -5,7 +7,7 @@ Summary:        FCP (Focusrite Control Protocol) Support Tools
 
 License:        GPLv3+
 URL:            https://github.com/geoffreybennett/fcp-support
-Source0:        %{name}-%{version}.tar.gz
+Source0:        %{name}-%{tag_version}.tar.gz
 
 BuildRequires:  make
 BuildRequires:  gcc
@@ -21,7 +23,8 @@ Requires:       alsa-lib
 %description
 FCP (Focusrite Control Protocol) Support Tools provides user-space
 components for Focusrite USB audio interfaces using the Linux FCP
-driver, currently the 4th Gen Scarlett 16i16, 18i16, 18i20 interfaces.
+driver, currently the 4th Gen Scarlett 16i16, 18i16 and 18i20
+interfaces and the ISA C8X.
 
 The package includes a user-space server that communicates with
 devices via the kernel driver, creates ALSA controls, and manages
@@ -32,10 +35,13 @@ Requires the Linux FCP kernel driver. Install alsa-scarlett-gui as
 well for graphical device control.
 
 %prep
-%setup -q
+%setup -q -n %{name}-%{tag_version}
 
 %build
-%make_build VERSION=%{version} PREFIX=%{_prefix}
+# %{version} carries a tilde for rpm's ordering of pre-releases. The
+# binary reports the tag, which is how the online update index names
+# versions.
+%make_build VERSION=%{tag_version} PREFIX=%{_prefix}
 
 %install
 %make_install PREFIX=%{_prefix}

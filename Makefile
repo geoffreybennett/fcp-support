@@ -5,8 +5,20 @@
 # http://make.mad-scientist.net/papers/advanced-auto-dependency-generation/
 
 VERSION := $(shell \
-  git describe --abbrev=4 --dirty --always --tags 2>/dev/null | sed 's/-rc/~rc/g; s/-/./g' || \
+  git describe --abbrev=4 --dirty --always --tags 2>/dev/null | sed 's/-/./g' || \
   echo $${APP_VERSION:-Unknown} \
+)
+
+# rpm and dpkg both sort "1.0beta1" above "1.0", so a release does not
+# supersede its own pre-releases. A tilde sorts below everything, and
+# git refnames cannot contain one, so it is introduced here, for rpm and
+# deb only: pacman gives it no meaning. VERSION stays as the tag is
+# named: it is the tarball URL, the pkgver, and the version the binary
+# reports for comparison against the online update index.
+PKG_VERSION = $(shell \
+  echo '$(VERSION)' | sed \
+    -e 's/\.\(alpha\|beta\|rc\)/~\1/g' \
+    -e 's/\([0-9]\)\(alpha\|beta\|rc\)/\1~\2/g' \
 )
 
 NAME := fcp-support
@@ -150,7 +162,9 @@ uninstall:
 
 tar: all
 	mkdir -p $(TAR_DIR)
-	sed 's_VERSION$$_$(VERSION)_' < $(SPEC_FILE).template > $(TAR_DIR)/$(SPEC_FILE)
+	sed -e 's|TAG_VERSION$$|$(VERSION)|' \
+	    -e 's|VERSION$$|$(PKG_VERSION)|' \
+	    < $(SPEC_FILE).template > $(TAR_DIR)/$(SPEC_FILE)
 	cp -r client server shared data systemd udev \
 	      debian COPYING README.md Makefile fcp-support.install $(TAR_DIR)/
 	tar czf $(TAR_FILE) \
@@ -181,7 +195,7 @@ deb:
 	cp udev/99-fcp.rules deb-build/usr/lib/udev/rules.d/
 	cp data/fcp-alsa-map-*.json deb-build/usr/share/fcp-server/
 	cp debian/copyright deb-build/usr/share/doc/$(NAME)/
-	sed "s/VERSION/$(VERSION)/g" debian/control > deb-build/DEBIAN/control
+	sed "s/VERSION/$(PKG_VERSION)/g" debian/control > deb-build/DEBIAN/control
 	install -m 755 debian/postinst deb-build/DEBIAN/postinst
 	dpkg-deb --root-owner-group --build deb-build $(NAME)_$(VERSION)_$$(dpkg --print-architecture).deb
 	rm -rf deb-build
