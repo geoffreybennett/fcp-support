@@ -4,6 +4,41 @@ This repository provides the user-space components required for full
 functionality of Focusrite USB audio interfaces that use the Linux FCP
 driver.
 
+## Quick Start
+
+If you don't have to build from source:
+
+1. Install the RPM or deb from the
+   [Releases](https://github.com/geoffreybennett/fcp-support/releases)
+   page. It needs Linux 6.14 or later, and your user in the `audio`
+   group:
+
+   ```bash
+   sudo usermod -a -G audio $USER
+   ```
+
+   Log out and back in for the group change to take effect.
+
+   Debian 13 (trixie) ships 6.12, so a newer kernel is required from
+   backports:
+
+   ```bash
+   echo 'deb http://deb.debian.org/debian trixie-backports main' |
+     sudo tee /etc/apt/sources.list.d/trixie-backports.list
+   sudo apt update
+   sudo apt install -t trixie-backports linux-image-amd64
+   ```
+
+   Reboot into the new kernel.
+
+2. Install and run
+   [alsa-scarlett-gui](https://github.com/geoffreybennett/alsa-scarlett-gui).
+   It controls the device and offers firmware updates when one is
+   available.
+
+The rest of this page covers building from source, the command-line
+tools, and troubleshooting.
+
 ## System Overview
 
 FCP support in Linux consists of several components that work together:
