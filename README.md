@@ -35,6 +35,12 @@ If you don't have to build from source:
    sudo apt install -t trixie-backports linux-image-amd64
    ```
 
+   Ubuntu 24.04 ships 6.8, so it needs the hardware enablement kernel:
+
+   ```bash
+   sudo apt install linux-generic-hwe-24.04
+   ```
+
    Reboot into the new kernel.
 
 2. Plug in the device and check that it was detected:
