@@ -29,7 +29,7 @@ void device_get_fds(
 
 int device_load_config(struct fcp_device *device);
 
-bool device_pid_supported(uint16_t usb_pid);
+bool device_pid_supported(uint16_t usb_pid, char **kernel_support);
 
 int add_control(struct fcp_device *device, struct control_props *props);
 

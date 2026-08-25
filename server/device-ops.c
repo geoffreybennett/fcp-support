@@ -554,13 +554,28 @@ static char *find_alsa_map(uint16_t usb_pid) {
   return NULL;
 }
 
-bool device_pid_supported(uint16_t usb_pid) {
+// An ALSA map means this server knows the device. kernel_support, when
+// the map names it, receives the kernel versions whose FCP driver
+// handles it, for the caller to free.
+bool device_pid_supported(uint16_t usb_pid, char **kernel_support) {
   char *path = find_alsa_map(usb_pid);
+
+  *kernel_support = NULL;
 
   if (!path)
     return false;
 
+  json_object *fam = json_object_from_file(path);
   free(path);
+
+  if (fam) {
+    json_object *versions;
+
+    if (json_object_object_get_ex(fam, "kernel-support", &versions))
+      *kernel_support = strdup(json_object_get_string(versions));
+
+    json_object_put(fam);
+  }
 
   return true;
 }

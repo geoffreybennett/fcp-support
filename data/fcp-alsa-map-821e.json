@@ -1,4 +1,5 @@
 {
+  "kernel-support": "6.18.39, 7.1.4, or 7.2+",
   "output-group-sources": [
     "PCM 1", "PCM 2", "PCM 3", "PCM 4", "PCM 5", "PCM 6",
     "PCM 7", "PCM 8", "PCM 9", "PCM 10", "PCM 11", "PCM 12",

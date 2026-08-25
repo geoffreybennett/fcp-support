@@ -162,14 +162,29 @@ int main(int argc, char *argv[]) {
     // handled by another driver, so leave those in silence; a device it
     // does know means the FCP driver isn't there to talk to.
     if (err == -ENOPROTOOPT) {
-      if (device_pid_supported(device.usb_pid))
-        log_warning(
-          "Card %d is a supported device (%04x:%04x) but has no FCP "
-          "interface. Linux 6.14 or later is required.",
-          card_num,
-          device.usb_vid,
-          device.usb_pid
-        );
+      char *kernel_support;
+
+      if (device_pid_supported(device.usb_pid, &kernel_support)) {
+        if (kernel_support)
+          log_warning(
+            "Card %d is a supported device (%04x:%04x) but this kernel "
+            "has no FCP interface for it. The driver is in Linux %s.",
+            card_num,
+            device.usb_vid,
+            device.usb_pid,
+            kernel_support
+          );
+        else
+          log_warning(
+            "Card %d is a supported device (%04x:%04x) but this kernel "
+            "has no FCP interface for it.",
+            card_num,
+            device.usb_vid,
+            device.usb_pid
+          );
+
+        free(kernel_support);
+      }
 
       return 0;
     }

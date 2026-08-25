@@ -25,7 +25,9 @@ If you don't have to build from source:
    the packaged ones. `which -a fcp-tool` shows whether this has
    happened.
 
-2. The FCP driver needs Linux 6.14 or later. Check with `uname -r`.
+2. The FCP driver comes with the kernel. The Scarlett 4th Gen 16i16,
+   18i16 and 18i20 need Linux 6.14 or later; the ISA C8X needs 6.18.39,
+   7.1.4, or 7.2+. Check with `uname -r`.
 
    Debian 13 (trixie) ships 6.12, so a newer kernel is required from
    backports:
@@ -67,8 +69,8 @@ tools, and troubleshooting.
 FCP support in Linux consists of several components that work together:
 
 1. **Kernel Driver** ([linux-fcp](https://github.com/geoffreybennett/linux-fcp))
-   - Allows `fcp-server` to communicate with the device; included in
-     Linux 6.14 and later, so there is nothing to install
+   - Allows `fcp-server` to communicate with the device; comes with
+     the kernel, so there is nothing to install
 
 2. **User-space Server** (this repo: `fcp-server`)
    - Communicates with the device via the kernel driver
@@ -101,8 +103,8 @@ Vocaster devices.
 
 ## Prerequisites
 
-1. Linux kernel 6.14 or later (the FCP kernel driver is included
-   from this version). Check with `uname -r`.
+1. A kernel with the FCP driver for your device, as listed in the
+   Quick Start above. Check with `uname -r`.
 
 2. Required packages for building:
 
