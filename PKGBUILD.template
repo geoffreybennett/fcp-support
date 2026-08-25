@@ -2,7 +2,7 @@
 pkgname=fcp-support
 pkgver=VERSION
 pkgrel=1
-pkgdesc='FCP (Focusrite Control Protocol) Support Tools for Scarlett 4th Gen 16i16/18i16/18i20 and ISA C8X'
+pkgdesc='FCP (Focusrite Control Protocol) Support for Scarlett 4th Gen 16i16/18i16/18i20 and ISA C8X'
 arch=('x86_64')
 url="https://github.com/geoffreybennett/$pkgname"
 license=('GPL3')

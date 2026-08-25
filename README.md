@@ -1,4 +1,4 @@
-# Linux FCP (Focusrite Control Protocol) Support Tools
+# Linux FCP (Focusrite Control Protocol) Support
 
 This repository provides the user-space components required for full
 functionality of Focusrite USB audio interfaces that use the Linux FCP
