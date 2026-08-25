@@ -19,6 +19,12 @@ If you don't have to build from source:
 
    Log out and back in for the group change to take effect.
 
+   If you have installed from source before, run `make uninstall` in
+   that checkout first. Source builds install to `/usr/local/bin`,
+   which comes before `/usr/bin` in `PATH`, so the old binaries shadow
+   the packaged ones. `which -a fcp-tool` shows whether this has
+   happened.
+
    Debian 13 (trixie) ships 6.12, so a newer kernel is required from
    backports:
 
@@ -112,11 +118,7 @@ Log out and back in for the group membership change to take effect.
 
 ## Installation
 
-RPM and deb packages are available from the
-[GitHub Releases](https://github.com/geoffreybennett/fcp-support/releases)
-page.
-
-Alternatively, build from source:
+Build from source:
 
 1. Download, build and install:
 
