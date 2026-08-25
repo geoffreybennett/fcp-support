@@ -5,9 +5,14 @@
 # http://make.mad-scientist.net/papers/advanced-auto-dependency-generation/
 
 VERSION := $(shell \
-  git describe --abbrev=4 --dirty --always --tags 2>/dev/null | sed 's/-/./g' || \
-  echo $${APP_VERSION:-Unknown} \
+  git describe --abbrev=4 --dirty --always --tags 2>/dev/null | sed 's/-/./g' \
 )
+
+# Builds from a release tarball have no git metadata, so the packaging
+# passes the version in.
+ifeq ($(VERSION),)
+  VERSION := $(if $(APP_VERSION),$(APP_VERSION),Unknown)
+endif
 
 # rpm and dpkg both sort "1.0beta1" above "1.0", so a release does not
 # supersede its own pre-releases. A tilde sorts below everything, and
