@@ -206,7 +206,7 @@ deb:
 	rm -rf deb-build
 
 arch:
-	sed 's/VERSION/$(VERSION)/g' PKGBUILD.template > PKGBUILD
+	sed 's/VERSION$$/$(VERSION)/' PKGBUILD.template > PKGBUILD
 
 help:
 	@echo "fcp-support"
