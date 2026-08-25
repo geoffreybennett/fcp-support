@@ -3,3 +3,4 @@
 /fcp-server
 /fcp-tool
 /systemd/fcp-server@.service
+/PKGBUILD
