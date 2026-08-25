@@ -1,8 +1,9 @@
 # Linux FCP (Focusrite Control Protocol) Support
 
 This repository provides the user-space components required for full
-functionality of Focusrite USB audio interfaces that use the Linux FCP
-driver.
+functionality of the Focusrite USB audio interfaces that use the Linux
+FCP driver: the Scarlett 4th Gen 16i16, 18i16 and 18i20, and the ISA
+C8X.
 
 ## Quick Start
 
