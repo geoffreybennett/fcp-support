@@ -19,6 +19,10 @@ static void usage(const char *argv0) {
   log_error("Usage: %s <card-number>", argv0);
 }
 
+static int is_opt(const char *arg, const char *shrt, const char *lng) {
+  return !strcmp(arg, shrt) || !strcmp(arg, lng);
+}
+
 static int process_control_event(struct fcp_device *device) {
   snd_ctl_event_t *event;
   snd_ctl_elem_id_t *event_id;
@@ -131,9 +135,21 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  if (is_opt(argv[1], "-v", "--version")) {
+    printf("FCP Server Version %s\n", VERSION);
+    return 0;
+  }
+
+  if (is_opt(argv[1], "-h", "--help")) {
+    usage(argv[0]);
+    return 0;
+  }
+
+  char *end;
+
   errno = 0;
-  card_num = strtol(argv[1], NULL, 10);
-  if (errno || card_num < 0) {
+  card_num = strtol(argv[1], &end, 10);
+  if (errno || end == argv[1] || *end || card_num < 0) {
     log_error("Invalid card number: %s", argv[1]);
     return 1;
   }
