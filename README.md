@@ -31,7 +31,16 @@ If you don't have to build from source:
 
    Reboot into the new kernel.
 
-2. Install and run
+2. Plug in the device and check that it was detected:
+
+   ```bash
+   fcp-tool
+   ```
+
+   It should report your interface, its card number, and the
+   installed firmware version.
+
+3. Install and run
    [alsa-scarlett-gui](https://github.com/geoffreybennett/alsa-scarlett-gui).
    It controls the device and offers firmware updates when one is
    available.
@@ -44,8 +53,8 @@ tools, and troubleshooting.
 FCP support in Linux consists of several components that work together:
 
 1. **Kernel Driver** ([linux-fcp](https://github.com/geoffreybennett/linux-fcp))
-   - Allows `fcp-server` to communicate with the device — install this
-     first (not necessary if your kernel version is 6.14 or later)
+   - Allows `fcp-server` to communicate with the device; included in
+     Linux 6.14 and later, so there is nothing to install
 
 2. **User-space Server** (this repo: `fcp-server`)
    - Communicates with the device via the kernel driver
@@ -101,7 +110,7 @@ sudo usermod -a -G audio $USER
 
 Log out and back in for the group membership change to take effect.
 
-### Installation
+## Installation
 
 RPM and deb packages are available from the
 [GitHub Releases](https://github.com/geoffreybennett/fcp-support/releases)
@@ -116,8 +125,6 @@ git clone https://github.com/geoffreybennett/fcp-support.git
 cd fcp-support
 make
 sudo make install
-sudo systemctl daemon-reload
-sudo udevadm control --reload-rules
 ```
 
 This will:
@@ -180,7 +187,7 @@ provides equivalent command-line capabilities:
 
 ```bash
 # View all commands
-fcp-tool
+fcp-tool help
 
 # Update firmware (takes 1-2 minutes)
 fcp-tool update
