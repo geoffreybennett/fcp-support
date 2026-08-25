@@ -171,7 +171,7 @@ tar: all
 	    -e 's|VERSION$$|$(PKG_VERSION)|' \
 	    < $(SPEC_FILE).template > $(TAR_DIR)/$(SPEC_FILE)
 	cp -r client server shared data systemd udev \
-	      debian COPYING README.md Makefile fcp-support.install $(TAR_DIR)/
+	      debian COPYING README.md Makefile $(TAR_DIR)/
 	tar czf $(TAR_FILE) \
 	    --exclude='*.o' \
 	    --exclude='$(TAR_DIR)/systemd/fcp-server@.service' \
