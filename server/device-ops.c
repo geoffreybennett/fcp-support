@@ -37,7 +37,6 @@ static void get_usb_ids(int card_num, uint16_t *vid, uint16_t *pid) {
   }
 
   f = fopen(proc_path, "r");
-  free(proc_path);
   if (!f) {
     log_error("Cannot open USB ID file for card %d", card_num);
     exit(1);
@@ -71,6 +70,8 @@ static void get_usb_ids(int card_num, uint16_t *vid, uint16_t *pid) {
     );
     exit(1);
   }
+
+  free(proc_path);
 
   *vid = scan_vid;
   *pid = scan_pid;
