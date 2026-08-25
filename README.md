@@ -10,8 +10,7 @@ If you don't have to build from source:
 
 1. Install the RPM or deb from the
    [Releases](https://github.com/geoffreybennett/fcp-support/releases)
-   page. It needs Linux 6.14 or later, and your user in the `audio`
-   group:
+   page, and put your user in the `audio` group:
 
    ```bash
    sudo usermod -a -G audio $USER
@@ -24,6 +23,8 @@ If you don't have to build from source:
    which comes before `/usr/bin` in `PATH`, so the old binaries shadow
    the packaged ones. `which -a fcp-tool` shows whether this has
    happened.
+
+2. The FCP driver needs Linux 6.14 or later. Check with `uname -r`.
 
    Debian 13 (trixie) ships 6.12, so a newer kernel is required from
    backports:
@@ -43,7 +44,7 @@ If you don't have to build from source:
 
    Reboot into the new kernel.
 
-2. Plug in the device and check that it was detected:
+3. Plug in the device and check that it was detected:
 
    ```bash
    fcp-tool
@@ -52,7 +53,7 @@ If you don't have to build from source:
    It should report your interface, its card number, and the
    installed firmware version.
 
-3. Install and run
+4. Install and run
    [alsa-scarlett-gui](https://github.com/geoffreybennett/alsa-scarlett-gui).
    It controls the device and offers firmware updates when one is
    available.
