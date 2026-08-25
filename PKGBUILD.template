@@ -12,7 +12,6 @@ optdepends=('scarlett4-firmware: firmware images for Scarlett 4th Gen devices'
             'alsa-scarlett-gui: graphical control panel')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/$pkgver.tar.gz")
 sha256sums=('SKIP')
-install=fcp-support.install
 
 build() {
   cd "$pkgname-$pkgver"
