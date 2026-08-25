@@ -515,17 +515,55 @@ void device_get_fds(struct fcp_device *device, int *ctl_fd, int *hwdep_fd) {
   *hwdep_fd = device->hwdep_fd;
 }
 
-static json_object *try_load_json(const char *dir, const char *filename) {
-  if (!dir)
-    return json_object_from_file(filename);
+// Locate the ALSA map for a device, searching the environment
+// override, the current directory, then the installed data directory.
+// Returns the readable path, which the caller frees, or NULL.
+static char *find_alsa_map(uint16_t usb_pid) {
+  char *filename;
 
-  char *path;
-  json_object *obj = NULL;
-  if (asprintf(&path, "%s/%s", dir, filename) >= 0) {
-    obj = json_object_from_file(path);
+  if (asprintf(&filename, "fcp-alsa-map-%04x.json", usb_pid) < 0) {
+    log_error("Cannot allocate memory for filename");
+    return NULL;
+  }
+
+  const char *search_dirs[] = {
+    getenv("FCP_SERVER_DATA_DIR"),
+    NULL,
+    DATADIR
+  };
+
+  for (size_t i = 0; i < ARRAY_SIZE(search_dirs); i++) {
+    char *path;
+
+    if (!search_dirs[i]) {
+      path = strdup(filename);
+      if (!path)
+        continue;
+    } else if (asprintf(&path, "%s/%s", search_dirs[i], filename) < 0) {
+      continue;
+    }
+
+    if (access(path, R_OK) == 0) {
+      free(filename);
+      return path;
+    }
+
     free(path);
   }
-  return obj;
+
+  free(filename);
+  return NULL;
+}
+
+bool device_pid_supported(uint16_t usb_pid) {
+  char *path = find_alsa_map(usb_pid);
+
+  if (!path)
+    return false;
+
+  free(path);
+
+  return true;
 }
 
 int device_load_config(struct fcp_device *device) {
@@ -539,35 +577,25 @@ int device_load_config(struct fcp_device *device) {
   }
 
   // Read FCP ALSA map
-  char *filename;
-  if (asprintf(&filename, "fcp-alsa-map-%04x.json", device->usb_pid) < 0) {
-    log_error("Cannot allocate memory for filename");
-    return -ENOMEM;
+  char *path = find_alsa_map(device->usb_pid);
+  if (!path) {
+    log_error("Cannot find FCP ALSA map for %04x", device->usb_pid);
+    return -ENOENT;
   }
 
-  // Try locations in order: env var, current dir, system dir
-  const char *search_dirs[] = {
-    getenv("FCP_SERVER_DATA_DIR"),
-    NULL,
-    DATADIR
-  };
-
-  for (size_t i = 0; i < ARRAY_SIZE(search_dirs); i++) {
-    device->fam = try_load_json(search_dirs[i], filename);
-    if (device->fam) {
-      if (search_dirs[i])
-        log_info("Loaded FCP ALSA map from %s/%s", search_dirs[i], filename);
-      else
-        log_info("Loaded FCP ALSA map from %s", filename);
-      free(filename);
-      return 0;
-    }
+  device->fam = json_object_from_file(path);
+  if (!device->fam) {
+    log_error(
+      "Cannot read FCP ALSA map %s: %s",
+      path,
+      json_util_get_last_err()
+    );
+    free(path);
+    return -ENOENT;
   }
 
-  free(filename);
-  log_error(
-    "Cannot read FCP ALSA map: %s",
-    json_util_get_last_err()
-  );
-  return -ENOENT;
+  log_info("Loaded FCP ALSA map from %s", path);
+  free(path);
+
+  return 0;
 }

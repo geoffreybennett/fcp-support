@@ -142,9 +142,21 @@ int main(int argc, char *argv[]) {
   err = device_init(card_num, &device);
   if (err < 0) {
 
-    // Quietly ignore if FCP is not supported
-    if (err == -ENOPROTOOPT)
+    // No hwdep interface. Devices this server has no ALSA map for are
+    // handled by another driver, so leave those in silence; a device it
+    // does know means the FCP driver isn't there to talk to.
+    if (err == -ENOPROTOOPT) {
+      if (device_pid_supported(device.usb_pid))
+        log_warning(
+          "Card %d is a supported device (%04x:%04x) but has no FCP "
+          "interface. Linux 6.14 or later is required.",
+          card_num,
+          device.usb_vid,
+          device.usb_pid
+        );
+
       return 0;
+    }
 
     log_error("Device initialisation failed: %s", snd_strerror(err));
     return 1;
