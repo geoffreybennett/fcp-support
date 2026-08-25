@@ -189,9 +189,7 @@ install the files by hand instead, put the `.bin` files in
 `alsa-scarlett-gui` look for them. `fcp-tool list-all` reports the
 versions it finds.
 
-`alsa-scarlett-gui` will prompt you to update the firmware
-automatically when a newer version is available. `fcp-tool`
-provides equivalent command-line capabilities:
+`fcp-tool` manages firmware from the command line:
 
 ```bash
 # View all commands
