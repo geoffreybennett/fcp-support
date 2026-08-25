@@ -33,6 +33,7 @@ FCP support in Linux consists of several components that work together:
 The currently supported devices are:
 
 - Scarlett 4th Gen 16i16, 18i16, and 18i20
+- ISA C8X
 
 The FCP driver itself supports all Focusrite USB audio interfaces
 since the 2nd Gen Scarletts, so support for the other devices will be
@@ -127,6 +128,16 @@ The installation process sets up:
   - Start the FCP server manually with debug logging: `LOG_LEVEL=debug fcp-server <card-number>`
 
 ### Firmware Management
+
+Firmware is distributed separately, from
+[scarlett4-firmware](https://github.com/geoffreybennett/scarlett4-firmware).
+RPM and deb packages are on its
+[Releases](https://github.com/geoffreybennett/scarlett4-firmware/releases)
+page, and Arch users can install `scarlett4-firmware` from the AUR. To
+install the files by hand instead, put the `.bin` files in
+`/usr/lib/firmware/scarlett4`, which is where `fcp-tool` and
+`alsa-scarlett-gui` look for them. `fcp-tool list-all` reports the
+versions it finds.
 
 `alsa-scarlett-gui` will prompt you to update the firmware
 automatically when a newer version is available. `fcp-tool`
