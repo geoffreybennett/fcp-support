@@ -4,14 +4,16 @@
 # Credit to Tom Tromey and Paul D. Smith:
 # http://make.mad-scientist.net/papers/advanced-auto-dependency-generation/
 
+# Packaging passes VERSION on the command line, which overrides this.
+# An unpacked release tarball has no git metadata of its own, and git
+# describe would report on whatever repository the build directory sits
+# inside, such as the AUR clone around it.
 VERSION := $(shell \
   git describe --abbrev=4 --dirty --always --tags 2>/dev/null | sed 's/-/./g' \
 )
 
-# Builds from a release tarball have no git metadata, so the packaging
-# passes the version in.
 ifeq ($(VERSION),)
-  VERSION := $(if $(APP_VERSION),$(APP_VERSION),Unknown)
+  VERSION := Unknown
 endif
 
 # rpm and dpkg both sort "1.0beta1" above "1.0", so a release does not
@@ -205,9 +207,6 @@ deb:
 	dpkg-deb --root-owner-group --build deb-build $(NAME)_$(VERSION)_$$(dpkg --print-architecture).deb
 	rm -rf deb-build
 
-arch:
-	sed 's/VERSION$$/$(VERSION)/' PKGBUILD.template > PKGBUILD
-
 help:
 	@echo "fcp-support"
 	@echo
@@ -220,6 +219,5 @@ help:
 	@echo "  make tar       - create tarball"
 	@echo "  make rpm       - build RPM package"
 	@echo "  make deb       - build deb package"
-	@echo "  make arch      - generate PKGBUILD for Arch Linux"
 
-.PHONY: all clean depclean install uninstall help install-bin install-service install-rules install-data tar rpm deb arch
+.PHONY: all clean depclean install uninstall help install-bin install-service install-rules install-data tar rpm deb
