@@ -697,7 +697,11 @@ int fcp_flash_read(
   return err;
 }
 
-/* Read the sync status */
+/* Read the sync status. Bit 0 is the lock; the Clarett Thunderbolt
+ * units set bit 1 on its own for ~25 ms while the clock is changing,
+ * and the sync-change notification lands inside that window, so only
+ * bit 0 is reported.
+ */
 int fcp_sync_read(snd_hwdep_t *hwdep) {
   uint32_t buf = 0;
 
@@ -713,7 +717,7 @@ int fcp_sync_read(snd_hwdep_t *hwdep) {
     return err;
   }
 
-  return !!le32toh(buf);
+  return le32toh(buf) & 1;
 }
 
 /* Start ESP DFU */
