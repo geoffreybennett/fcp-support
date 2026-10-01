@@ -31,6 +31,9 @@ SPEC_FILE := $(NAME).spec
 TAR_DIR := $(NAME)-$(VERSION)
 TAR_FILE := $(TAR_DIR).tar.gz
 
+# Debian package architecture
+DEB_ARCH := $(shell dpkg --print-architecture 2>/dev/null || echo "all")
+
 # Installation paths
 ifeq ($(PREFIX),)
   PREFIX := /usr/local
@@ -200,9 +203,9 @@ deb:
 	cp udev/99-fcp.rules deb-build/usr/lib/udev/rules.d/
 	cp data/fcp-alsa-map-*.json deb-build/usr/share/fcp-server/
 	cp debian/copyright deb-build/usr/share/doc/$(NAME)/
-	sed "s/VERSION/$(PKG_VERSION)/g" debian/control > deb-build/DEBIAN/control
+	sed -e "s/VERSION/$(PKG_VERSION)/g" -e "s/DEB_ARCH/$(DEB_ARCH)/g" debian/control > deb-build/DEBIAN/control
 	install -m 755 debian/postinst deb-build/DEBIAN/postinst
-	dpkg-deb --root-owner-group --build deb-build $(NAME)_$(VERSION)_$$(dpkg --print-architecture).deb
+	dpkg-deb --root-owner-group --build deb-build $(NAME)_$(VERSION)_$(DEB_ARCH).deb
 	rm -rf deb-build
 
 arch:
