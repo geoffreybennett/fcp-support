@@ -68,10 +68,7 @@ LDFLAGS += $(shell $(PKG_CONFIG) --libs alsa)
 LDFLAGS += $(shell $(PKG_CONFIG) --libs libcrypto)
 LDFLAGS += $(shell $(PKG_CONFIG) --libs zlib)
 LDFLAGS += $(shell $(PKG_CONFIG) --libs json-c)
-LDFLAGS += -lm -pie
-
-SERVER_CFLAGS := $(shell $(PKG_CONFIG) --cflags libsystemd)
-SERVER_LDFLAGS := $(shell $(PKG_CONFIG) --libs libsystemd)
+LDFLAGS += -lm -ldl -pie
 
 COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) -c
 
@@ -106,7 +103,7 @@ SERVER_DEPS := $(SERVER_SRCS:%.c=$(DEPDIR)/%.d)
 SHARED_DEPS := $(SHARED_SRCS:%.c=$(DEPDIR)/%.d)
 
 # Update COMPILE.c for server files
-$(SERVER_OBJS): COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) $(SERVER_CFLAGS) -c
+$(SERVER_OBJS): COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) -c
 
 # Pattern rule for object files
 %.o: %.c | $(DEPDIRS)
@@ -124,7 +121,7 @@ fcp-tool: $(CLIENT_OBJS) $(SHARED_OBJS)
 	cc -o $@ $(CLIENT_OBJS) $(SHARED_OBJS) ${LDFLAGS}
 
 fcp-server: $(SERVER_OBJS)
-	cc -o $@ $(SERVER_OBJS) ${LDFLAGS} ${SERVER_LDFLAGS}
+	cc -o $@ $(SERVER_OBJS) ${LDFLAGS}
 
 clean: depclean
 	rm -f $(TARGETS) $(CLIENT_OBJS) $(SERVER_OBJS) $(SHARED_OBJS) systemd/fcp-server@.service
