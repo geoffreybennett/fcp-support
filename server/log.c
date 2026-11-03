@@ -47,8 +47,8 @@ void log_init(void) {
       use_systemd = false;
     }
   }
-  assert( (use_systemd ? fcp_sd_journal_print : 0)
-       &&  "use_systemd set, but fcp_/sd_journal_printf not initialized" );
+  assert( (use_systemd ? NULL != fcp_sd_journal_print : true)
+       && "use_systemd set, fcp_/sd_journal_printf not initialized" );
 
   const char *env = getenv("LOG_LEVEL");
   if (env) {
