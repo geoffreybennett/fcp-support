@@ -264,6 +264,14 @@
       "name": "Dim Playback Switch",
       "type": "bool"
     },
+    "headphone1MuteSwitch": {
+      "name": "Headphones 1 Mute Playback Switch",
+      "type": "bool"
+    },
+    "headphone2MuteSwitch": {
+      "name": "Headphones 2 Mute Playback Switch",
+      "type": "bool"
+    },
     "isaMonitorGroupConfig": {
       "name": "Monitor Group Playback Enum",
       "type": "enum",
