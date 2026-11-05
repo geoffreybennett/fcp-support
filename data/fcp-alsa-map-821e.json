@@ -140,7 +140,8 @@
     },
     "mute": {
       "name": "Line %d Mute Playback Switch",
-      "type": "bool"
+      "type": "bool",
+      "count": 12
     },
     "outputGroupMain.map": {
       "name": "Main Group Output %d Playback Switch",

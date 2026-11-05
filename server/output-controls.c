@@ -525,6 +525,12 @@ static int create_global_output_array_controls(
       json_object_array_get_idx(array_shape, 0)
     );
 
+    /* "count" limits the controls to the first outputs */
+    struct json_object *count;
+    if (json_object_object_get_ex(control_config, "count", &count) &&
+        json_object_get_int(count) < array_size)
+      array_size = json_object_get_int(count);
+
     /* Create a control for each array element */
     for (int i = 0; i < array_size; i++) {
       int err = create_output_control(
