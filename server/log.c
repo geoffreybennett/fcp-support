@@ -8,7 +8,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include <systemd/sd-journal.h>
+#include <syslog.h>
+#include <dlfcn.h>
+#include <assert.h>
 
 #include "log.h"
 
@@ -29,8 +31,24 @@ static bool check_journal_stream(void) {
   return statbuf.st_dev == dev && statbuf.st_ino == inode;
 }
 
+static int (*fcp_sd_journal_print)(int priority, const char *format, ...) = NULL;
+
 void log_init(void) {
   use_systemd = check_journal_stream();
+  if (use_systemd) {
+    (void)dlerror(); // clear dl error flags
+    void *const libsystemd = dlopen("libsystemd.so",
+      (RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE) );
+    if (libsystemd) {
+      fcp_sd_journal_print = dlsym(libsystemd, "sd_journal_print");
+    }
+    if (!fcp_sd_journal_print || dlerror()) {
+      fcp_sd_journal_print = NULL;
+      use_systemd = false;
+    }
+  }
+  assert( (use_systemd ? NULL != fcp_sd_journal_print : true)
+       && "use_systemd set, fcp_/sd_journal_printf not initialized" );
 
   const char *env = getenv("LOG_LEVEL");
   if (env) {
@@ -61,7 +79,7 @@ void log_msg(log_level_t level, const char *fmt, ...) {
       case LOG_LEVEL_DEBUG: priority = LOG_DEBUG; break;
     }
 
-    sd_journal_print(priority, "%s", buf);
+    fcp_sd_journal_print(priority, "%s", buf);
   } else {
     FILE *out = level <= LOG_LEVEL_WARNING ? stderr : stdout;
     vfprintf(out, fmt, args);
